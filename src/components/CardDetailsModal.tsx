@@ -14,7 +14,8 @@ import {
   Plus,
   BookOpen,
   ChevronDown,
-  ExternalLink,
+  ChevronLeft,
+  Grid,
 } from "lucide-react";
 import { useAlbum } from "@/context/AlbumContext";
 import { twMerge } from "tailwind-merge";
@@ -54,11 +55,23 @@ export default function CardDetailsModal({
   // When opened from database (add to album)
   const [addState, setAddState] = useState<"OWNED" | "WISHLIST">("OWNED");
   const [addLanguage, setAddLanguage] = useState<"JP" | "EN">("EN");
-  const [selectedPageId, setSelectedPageId] = useState<string>("");
+  const [placementType, setPlacementType] = useState<
+    "FIRST_AVAILABLE" | "CONCRETE"
+  >("FIRST_AVAILABLE");
+  const [concretePos, setConcretePos] = useState<{
+    pageId: string;
+    slotId: string;
+    pageTitle: string;
+    slotIndex: number;
+  } | null>(null);
+  const [viewMiniAlbum, setViewMiniAlbum] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
   const [showPageSelector, setShowPageSelector] = useState(false);
 
-  const handleToggleSlotState = (newState: "OWNED" | "WISHLIST", newLang?: "JP" | "EN") => {
+  const handleToggleSlotState = (
+    newState: "OWNED" | "WISHLIST",
+    newLang?: "JP" | "EN",
+  ) => {
     if (!slotPageId || !slotId || !card) return;
     const finalState = newState;
     const finalLang = newLang !== undefined ? newLang : slotLanguage;
@@ -84,18 +97,28 @@ export default function CardDetailsModal({
   const isAlreadyInAlbum = existingSlots.length > 0;
 
   const handleAddToAlbum = () => {
-    const targetPageId = selectedPageId || album.pages[0]?.pageId;
-    if (!targetPageId) return;
+    let targetPageId = "";
+    let targetSlotId = "";
 
-    const targetPage = album.pages.find((p) => p.pageId === targetPageId);
-    if (!targetPage) return;
+    if (placementType === "CONCRETE" && concretePos) {
+      targetPageId = concretePos.pageId;
+      targetSlotId = concretePos.slotId;
+    } else {
+      const emptyPage = album.pages.find((p) =>
+        p.slots.some((s) => s.state === "EMPTY"),
+      );
+      if (!emptyPage) return;
+      targetPageId = emptyPage.pageId;
+      targetSlotId = emptyPage.slots.find((s) => s.state === "EMPTY")!.slotId;
+    }
 
-    const emptySlot = targetPage.slots.find((s) => s.state === "EMPTY");
-    if (!emptySlot) return;
-
-    updateSlot(targetPageId, emptySlot.slotId, card, addState, addLanguage);
+    updateSlot(targetPageId, targetSlotId, card, addState, addLanguage);
     setAddSuccess(true);
-    setTimeout(() => setAddSuccess(false), 2000);
+    setTimeout(() => {
+      setAddSuccess(false);
+      // Reset placement to FIRST_AVAILABLE if it was just placed in concrete slot?
+      // No need, user might close the modal. If they add multiple, let them choose.
+    }, 2000);
   };
 
   const getPagesWithSpace = () =>
@@ -132,17 +155,16 @@ export default function CardDetailsModal({
             className="relative w-full max-w-5xl bg-leather border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-black flex flex-col md:flex-row"
           >
             {/* Left: Card art */}
-            <div className="w-full md:w-[42%] p-8 bg-obsidian flex items-center justify-center border-b md:border-b-0 md:border-r border-white/5 relative">
+            <div className="w-full md:w-[42%] p-3 bg-obsidian flex items-center justify-center border-b md:border-b-0 md:border-r border-white/5 relative">
               {/* Rare glow bg */}
               {isRare && (
                 <div className="absolute inset-0 bg-linear-to-br from-gold/5 to-transparent pointer-events-none" />
               )}
               <motion.div
                 className={twMerge(
-                  "relative w-full max-w-[260px] aspect-[63/88] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10",
+                  "relative w-full max-w-96 aspect-63/88 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10",
                   isRare && "ring-gold/30",
                 )}
-                whileHover={{ scale: 1.02, rotateY: 4, rotateX: 2 }}
                 style={{ transformStyle: "preserve-3d" }}
               >
                 <div
@@ -160,323 +182,423 @@ export default function CardDetailsModal({
               </motion.div>
             </div>
 
-            {/* Right: Details */}
-            <div className="flex-1 flex flex-col overflow-y-auto max-h-[85vh] p-8 md:p-10">
-              {/* Close */}
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="px-2.5 py-1 bg-leather-light rounded-lg text-[9px] font-black text-zinc-400 border border-white/8 tracking-wider font-mono">
-                      {card.serial}
-                    </span>
-                    <span
-                      className={twMerge(
-                        "px-2.5 py-1 rounded-lg text-[9px] font-black border tracking-wider",
-                        rarityColors[card.rarity] ||
-                          "text-zinc-500 border-zinc-700/30 bg-zinc-700/10",
-                      )}
-                    >
-                      {card.rarity}
-                    </span>
-                    {card.color && (
-                      <span className="px-2.5 py-1 bg-leather-light rounded-lg text-[9px] font-black text-zinc-500 border border-white/8">
-                        {card.color}
+            {/* Right: Details / Mini Album */}
+            {viewMiniAlbum ? (
+              <div className="flex-1 flex flex-col p-8 md:p-10 max-h-[85vh]">
+                <div className="flex items-center gap-4 mb-6">
+                  <button
+                    onClick={() => setViewMiniAlbum(false)}
+                    className="p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <div>
+                    <h2 className="font-cinzel text-xl md:text-2xl font-bold text-white leading-tight">
+                      Seleccionar Hueco
+                    </h2>
+                    <p className="text-zinc-500 text-xs mt-1 font-bold uppercase tracking-widest">
+                      Mini Álbum
+                    </p>
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="cursor-pointer p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all shrink-0 ml-auto"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-8 pr-2 custom-scrollbar">
+                  {album.pages.map((page) => {
+                    const hasEmpty = page.slots.some(
+                      (s) => s.state === "EMPTY",
+                    );
+                    return (
+                      <div
+                        key={page.pageId}
+                        className={hasEmpty ? "" : "opacity-30"}
+                      >
+                        <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
+                          <h3 className="text-sm font-bold text-zinc-300">
+                            {page.title}
+                          </h3>
+                          <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500">
+                            {
+                              page.slots.filter((s) => s.state === "EMPTY")
+                                .length
+                            }{" "}
+                            libres
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2">
+                          {page.slots.map((slot, index) => {
+                            const isSelected =
+                              placementType === "CONCRETE" &&
+                              concretePos?.slotId === slot.slotId;
+                            const isEmpty = slot.state === "EMPTY";
+                            return (
+                              <button
+                                key={slot.slotId}
+                                disabled={!isEmpty}
+                                onClick={() => {
+                                  setPlacementType("CONCRETE");
+                                  setConcretePos({
+                                    pageId: page.pageId,
+                                    slotId: slot.slotId,
+                                    pageTitle: page.title,
+                                    slotIndex: index,
+                                  });
+                                  setViewMiniAlbum(false);
+                                }}
+                                className={twMerge(
+                                  "aspect-[63/88] rounded flex items-center justify-center border transition-all relative group overflow-hidden",
+                                  isEmpty
+                                    ? "cursor-pointer border-white/20 bg-white/5 hover:border-gold hover:bg-white/10"
+                                    : "cursor-not-allowed border-white/5 bg-zinc-900/50",
+                                  isSelected &&
+                                    "border-gold bg-gold/10 ring-2 ring-gold/20 !opacity-100", // Override opacity if selected (though shouldn't be full page normally)
+                                )}
+                              >
+                                {isSelected ? (
+                                  <CheckCircle2
+                                    size={16}
+                                    className="text-gold"
+                                  />
+                                ) : isEmpty ? (
+                                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[8px] font-black uppercase text-gold/70 transition-opacity">
+                                    <Plus size={10} />
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="absolute inset-0 bg-cover bg-center opacity-30 grayscale"
+                                    style={{
+                                      backgroundImage: slot.cardData?.imageData
+                                        ? `url(${slot.cardData.imageData})`
+                                        : slot.cardData?.url
+                                          ? `url(${slot.cardData.url})`
+                                          : "none",
+                                    }}
+                                  ></div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {album.pages.length === 0 && (
+                    <div className="text-center py-10 text-zinc-500 text-sm">
+                      No hay páginas en el álbum todavía.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col overflow-y-auto max-h-[85vh] p-8 md:p-10">
+                {/* Close */}
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="px-2.5 py-1 bg-leather-light rounded-lg text-[9px] font-black text-zinc-400 border border-white/8 tracking-wider font-mono">
+                        {card.serial}
                       </span>
+                      <span
+                        className={twMerge(
+                          "px-2.5 py-1 rounded-lg text-[9px] font-black border tracking-wider",
+                          rarityColors[card.rarity] ||
+                            "text-zinc-500 border-zinc-700/30 bg-zinc-700/10",
+                        )}
+                      >
+                        {card.rarity}
+                      </span>
+                      {card.color && (
+                        <span className="px-2.5 py-1 bg-leather-light rounded-lg text-[9px] font-black text-zinc-500 border border-white/8">
+                          {card.color}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="font-cinzel text-3xl md:text-4xl font-bold text-white leading-tight">
+                      {card.name}
+                    </h2>
+                    <p className="text-zinc-500 text-xs mt-1 font-bold uppercase tracking-widest">
+                      {card.type}
+                    </p>
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="cursor-pointer p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all shrink-0 ml-4"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+                  <StatBox
+                    icon={<Swords size={14} />}
+                    label="Power"
+                    value={card.power ?? "—"}
+                    color="text-red-400"
+                  />
+                  <StatBox
+                    icon={<Shield size={14} />}
+                    label="Counter"
+                    value={card.counter ?? "—"}
+                    color="text-blue-400"
+                  />
+                  <StatBox
+                    icon={<Zap size={14} />}
+                    label="Cost"
+                    value={card.cost ?? "—"}
+                    color="text-gold"
+                  />
+                  <StatBox
+                    icon={<Info size={14} />}
+                    label="Attr."
+                    value={card.attribute ?? "—"}
+                    color="text-zinc-400"
+                  />
+                </div>
+
+                {/* Effect */}
+                {card.effect && (
+                  <div className="mb-8">
+                    <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em] mb-3">
+                      Efecto / Habilidad
+                    </h3>
+                    <div className="bg-obsidian rounded-2xl p-5 border border-white/6">
+                      <p className="text-sm text-zinc-300 leading-relaxed font-crimson italic">
+                        {card.effect}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Feature / Trigger */}
+                {(card.feature || card.trigger) && (
+                  <div className="mb-8 space-y-2">
+                    {card.feature && (
+                      <p className="text-xs text-zinc-500 font-crimson">
+                        <span className="font-black text-zinc-400 not-italic">
+                          Característica:{" "}
+                        </span>
+                        {card.feature}
+                      </p>
+                    )}
+                    {card.trigger && (
+                      <p className="text-xs text-zinc-500 font-crimson">
+                        <span className="font-black text-zinc-400 not-italic">
+                          Trigger:{" "}
+                        </span>
+                        {card.trigger}
+                      </p>
                     )}
                   </div>
-                  <h2 className="font-cinzel text-3xl md:text-4xl font-bold text-white leading-tight">
-                    {card.name}
-                  </h2>
-                  <p className="text-zinc-500 text-xs mt-1 font-bold uppercase tracking-widest">
-                    {card.type}
-                  </p>
-                </div>
-                <button
-                  onClick={onClose}
-                  className="cursor-pointer p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all shrink-0 ml-4"
-                >
-                  <X size={20} />
-                </button>
-              </div>
+                )}
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-                <StatBox
-                  icon={<Swords size={14} />}
-                  label="Power"
-                  value={card.power ?? "—"}
-                  color="text-red-400"
-                />
-                <StatBox
-                  icon={<Shield size={14} />}
-                  label="Counter"
-                  value={card.counter ?? "—"}
-                  color="text-blue-400"
-                />
-                <StatBox
-                  icon={<Zap size={14} />}
-                  label="Cost"
-                  value={card.cost ?? "—"}
-                  color="text-gold"
-                />
-                <StatBox
-                  icon={<Info size={14} />}
-                  label="Attr."
-                  value={card.attribute ?? "—"}
-                  color="text-zinc-400"
-                />
-              </div>
-
-              {/* Effect */}
-              {card.effect && (
-                <div className="mb-8">
-                  <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em] mb-3">
-                    Efecto / Habilidad
-                  </h3>
-                  <div className="bg-obsidian rounded-2xl p-5 border border-white/6">
-                    <p className="text-sm text-zinc-300 leading-relaxed font-crimson italic">
-                      {card.effect}
-                    </p>
+                {/* In album status */}
+                {isAlreadyInAlbum && (
+                  <div className="mb-6 bg-gold/5 border border-gold/20 rounded-2xl p-4 flex items-center gap-3">
+                    <BookOpen size={16} className="text-gold shrink-0" />
+                    <div>
+                      <p className="text-gold text-xs font-black uppercase tracking-wider">
+                        Ya en tu álbum
+                      </p>
+                      <p className="text-zinc-500 text-[10px] font-crimson mt-0.5">
+                        {existingSlots
+                          .map((s) => (s as any).pageTitle)
+                          .join(", ")}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Feature / Trigger */}
-              {(card.feature || card.trigger) && (
-                <div className="mb-8 space-y-2">
-                  {card.feature && (
-                    <p className="text-xs text-zinc-500 font-crimson">
-                      <span className="font-black text-zinc-400 not-italic">
-                        Característica:{" "}
-                      </span>
-                      {card.feature}
-                    </p>
-                  )}
-                  {card.trigger && (
-                    <p className="text-xs text-zinc-500 font-crimson">
-                      <span className="font-black text-zinc-400 not-italic">
-                        Trigger:{" "}
-                      </span>
-                      {card.trigger}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* In album status */}
-              {isAlreadyInAlbum && (
-                <div className="mb-6 bg-gold/5 border border-gold/20 rounded-2xl p-4 flex items-center gap-3">
-                  <BookOpen size={16} className="text-gold shrink-0" />
-                  <div>
-                    <p className="text-gold text-xs font-black uppercase tracking-wider">
-                      Ya en tu álbum
-                    </p>
-                    <p className="text-zinc-500 text-[10px] font-crimson mt-0.5">
-                      {existingSlots
-                        .map((s) => (s as any).pageTitle)
-                        .join(", ")}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* ---- SLOT CONTEXT: change owned / wishlist ---- */}
-              {isSlotContext ? (
-                <div className="mt-auto pt-6 border-t border-white/6 space-y-4">
-                  <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
-                    Estado en el Álbum
-                  </h3>
-                  <div className="flex gap-2">
-                    <StateButton
-                      active={slotState === "OWNED"}
-                      onClick={() => handleToggleSlotState("OWNED")}
-                      icon={<CheckCircle2 size={16} />}
-                      label="Poseída"
-                      activeClass="cursor-pointer bg-gold text-obsidian border-gold"
-                    />
-                    <StateButton
-                      active={slotState === "WISHLIST"}
-                      onClick={() => handleToggleSlotState("WISHLIST")}
-                      icon={<Bookmark size={16} />}
-                      label="Wishlist"
-                      activeClass="cursor-pointer bg-zinc-100 text-zinc-900 border-white"
-                    />
-                  </div>
-                  
-                  {/* Slot language selector */}
-                  <div className="flex gap-2">
-                    <StateButton
-                      active={slotLanguage === "EN"}
-                      onClick={() => handleToggleSlotState(slotState, "EN")}
-                      icon={null}
-                      label="EN"
-                      activeClass="cursor-pointer bg-blue-500/20 text-blue-400 border-blue-500/50"
-                    />
-                    <StateButton
-                      active={slotLanguage === "JP"}
-                      onClick={() => handleToggleSlotState(slotState, "JP")}
-                      icon={null}
-                      label="JP"
-                      activeClass="cursor-pointer bg-red-500/20 text-red-400 border-red-500/50"
-                    />
-                  </div>
-                  
-                  {stateChanged && (
-                    <motion.p
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="text-emerald-400 text-xs font-bold flex items-center gap-1.5"
-                    >
-                      <CheckCircle2 size={14} /> Estado actualizado
-                    </motion.p>
-                  )}
-                </div>
-              ) : (
-                /* ---- DATABASE CONTEXT: add to album ---- */
-                <div className="mt-auto pt-6 border-t border-white/6 space-y-4">
-                  <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
-                    Añadir al Álbum
-                  </h3>
-
-                  {/* State selector */}
-                  <div className="flex gap-2">
-                    <StateButton
-                      active={addState === "OWNED"}
-                      onClick={() => setAddState("OWNED")}
-                      icon={<CheckCircle2 size={16} />}
-                      label="Poseída"
-                      activeClass="cursor-pointer bg-gold text-obsidian border-gold"
-                    />
-                    <StateButton
-                      active={addState === "WISHLIST"}
-                      onClick={() => setAddState("WISHLIST")}
-                      icon={<Bookmark size={16} />}
-                      label="Wishlist"
-                      activeClass="cursor-pointer bg-zinc-100 text-zinc-900 border-white"
-                    />
-                  </div>
-
-                  {/* Language selector */}
-                  <div className="flex gap-2">
-                    <StateButton
-                      active={addLanguage === "EN"}
-                      onClick={() => setAddLanguage("EN")}
-                      icon={null}
-                      label="EN"
-                      activeClass="cursor-pointer bg-blue-500/20 text-blue-400 border-blue-500/50"
-                    />
-                    <StateButton
-                      active={addLanguage === "JP"}
-                      onClick={() => setAddLanguage("JP")}
-                      icon={null}
-                      label="JP"
-                      activeClass="cursor-pointer bg-red-500/20 text-red-400 border-red-500/50"
-                    />
-                  </div>
-
-                  {/* Page selector */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowPageSelector(!showPageSelector)}
-                      className="cursor-pointer w-full flex items-center justify-between px-4 py-3 bg-leather-light border border-white/10 rounded-xl text-sm text-zinc-300 hover:border-white/20 transition-all"
-                    >
-                      <span className="font-crimson">
-                        {selectedPageId
-                          ? album.pages.find((p) => p.pageId === selectedPageId)
-                              ?.title
-                          : "Primer hueco disponible"}
-                      </span>
-                      <ChevronDown
-                        size={16}
-                        className={twMerge(
-                          "text-zinc-500 transition-transform",
-                          showPageSelector && "rotate-180",
-                        )}
+                {/* ---- SLOT CONTEXT: change owned / wishlist ---- */}
+                {isSlotContext ? (
+                  <div className="mt-auto pt-6 border-t border-white/6 space-y-4">
+                    <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
+                      Estado en el Álbum
+                    </h3>
+                    <div className="flex gap-2">
+                      <StateButton
+                        active={slotState === "OWNED"}
+                        onClick={() => handleToggleSlotState("OWNED")}
+                        icon={<CheckCircle2 size={16} />}
+                        label="Poseída"
+                        activeClass="cursor-pointer bg-gold text-obsidian border-gold"
                       />
-                    </button>
+                      <StateButton
+                        active={slotState === "WISHLIST"}
+                        onClick={() => handleToggleSlotState("WISHLIST")}
+                        icon={<Bookmark size={16} />}
+                        label="Wishlist"
+                        activeClass="cursor-pointer bg-zinc-100 text-zinc-900 border-white"
+                      />
+                    </div>
 
-                    <AnimatePresence>
-                      {showPageSelector && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 6 }}
-                          className="absolute top-full left-0 right-0 mt-2 bg-leather-light border border-white/10 rounded-xl overflow-hidden shadow-2xl z-10"
-                        >
-                          <button
-                            onClick={() => {
-                              setSelectedPageId("");
-                              setShowPageSelector(false);
-                            }}
-                            className="cursor-pointer w-full px-4 py-2.5 text-left text-xs text-zinc-400 hover:text-white hover:bg-white/5 transition-colors font-crimson"
+                    {/* Slot language selector */}
+                    <div className="flex gap-2">
+                      <StateButton
+                        active={slotLanguage === "EN"}
+                        onClick={() => handleToggleSlotState(slotState, "EN")}
+                        icon={null}
+                        label="EN"
+                        activeClass="cursor-pointer bg-blue-500/20 text-blue-400 border-blue-500/50"
+                      />
+                      <StateButton
+                        active={slotLanguage === "JP"}
+                        onClick={() => handleToggleSlotState(slotState, "JP")}
+                        icon={null}
+                        label="JP"
+                        activeClass="cursor-pointer bg-red-500/20 text-red-400 border-red-500/50"
+                      />
+                    </div>
+
+                    {stateChanged && (
+                      <motion.p
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-emerald-400 text-xs font-bold flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 size={14} /> Estado actualizado
+                      </motion.p>
+                    )}
+                  </div>
+                ) : (
+                  /* ---- DATABASE CONTEXT: add to album ---- */
+                  <div className="mt-auto pt-6 border-t border-white/6 space-y-4">
+                    <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
+                      Añadir al Álbum
+                    </h3>
+
+                    {/* State selector */}
+                    <div className="flex gap-2">
+                      <StateButton
+                        active={addState === "OWNED"}
+                        onClick={() => setAddState("OWNED")}
+                        icon={<CheckCircle2 size={16} />}
+                        label="Poseída"
+                        activeClass="cursor-pointer bg-gold text-obsidian border-gold"
+                      />
+                      <StateButton
+                        active={addState === "WISHLIST"}
+                        onClick={() => setAddState("WISHLIST")}
+                        icon={<Bookmark size={16} />}
+                        label="Wishlist"
+                        activeClass="cursor-pointer bg-zinc-100 text-zinc-900 border-white"
+                      />
+                    </div>
+
+                    {/* Language selector */}
+                    <div className="flex gap-2">
+                      <StateButton
+                        active={addLanguage === "EN"}
+                        onClick={() => setAddLanguage("EN")}
+                        icon={null}
+                        label="EN"
+                        activeClass="cursor-pointer bg-blue-500/20 text-blue-400 border-blue-500/50"
+                      />
+                      <StateButton
+                        active={addLanguage === "JP"}
+                        onClick={() => setAddLanguage("JP")}
+                        icon={null}
+                        label="JP"
+                        activeClass="cursor-pointer bg-red-500/20 text-red-400 border-red-500/50"
+                      />
+                    </div>
+
+                    {/* Page selector */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowPageSelector(!showPageSelector)}
+                        className="cursor-pointer w-full flex items-center justify-between px-4 py-3 bg-leather-light border border-white/10 rounded-xl text-sm text-zinc-300 hover:border-white/20 transition-all"
+                      >
+                        <span className="font-crimson">
+                          {placementType === "CONCRETE" && concretePos
+                            ? `${concretePos.pageTitle} (Hueco ${concretePos.slotIndex + 1})`
+                            : "Primer hueco disponible"}
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          className={twMerge(
+                            "text-zinc-500 transition-transform",
+                            showPageSelector && "rotate-180",
+                          )}
+                        />
+                      </button>
+
+                      <AnimatePresence>
+                        {showPageSelector && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 6 }}
+                            className="absolute top-full left-0 right-0 mt-2 bg-leather border border-white/10 rounded-xl overflow-hidden shadow-2xl z-10"
                           >
-                            Primer hueco disponible
-                          </button>
-                          {getPagesWithSpace().map((p) => (
                             <button
-                              key={p.pageId}
                               onClick={() => {
-                                setSelectedPageId(p.pageId);
+                                setPlacementType("FIRST_AVAILABLE");
+                                setConcretePos(null);
                                 setShowPageSelector(false);
                               }}
-                              className="cursor-pointer w-full px-4 py-2.5 text-left text-xs text-zinc-300 hover:text-white hover:bg-white/5 transition-colors font-crimson border-t border-white/5"
+                              className="cursor-pointer w-full px-4 py-3.5 text-left text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors font-crimson flex justify-between items-center"
                             >
-                              <span>{p.title}</span>
-                              <span className="ml-2 text-zinc-600">
-                                (
-                                {
-                                  p.slots.filter((s) => s.state === "EMPTY")
-                                    .length
-                                }{" "}
-                                libres)
-                              </span>
+                              <span>Primer hueco disponible</span>
                             </button>
-                          ))}
-                          {getPagesWithSpace().length === 0 && (
-                            <div className="px-4 py-3 text-xs text-zinc-600 font-crimson italic">
-                              Todas las páginas están llenas
-                            </div>
-                          )}
-                        </motion.div>
+
+                            <button
+                              onClick={() => {
+                                setShowPageSelector(false);
+                                setViewMiniAlbum(true);
+                              }}
+                              className="cursor-pointer w-full px-4 py-3.5 text-left text-sm text-gold hover:text-gold-bright hover:bg-white/5 transition-colors font-crimson border-t border-white/5 flex justify-between items-center"
+                            >
+                              <span>Posición concreta...</span>
+                              <Grid size={14} className="opacity-70" />
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Add button */}
+                    <motion.button
+                      onClick={handleAddToAlbum}
+                      disabled={getPagesWithSpace().length === 0}
+                      whileTap={{ scale: 0.97 }}
+                      className={twMerge(
+                        "w-full py-3.5 rounded-xl font-black uppercase text-sm tracking-wider transition-all duration-200 flex items-center justify-center gap-2",
+                        addSuccess
+                          ? "bg-emerald-500 text-white"
+                          : "bg-gold text-obsidian hover:bg-gold-bright disabled:opacity-40 disabled:cursor-not-allowed",
                       )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Add button */}
-                  <motion.button
-                    onClick={handleAddToAlbum}
-                    disabled={getPagesWithSpace().length === 0}
-                    whileTap={{ scale: 0.97 }}
-                    className={twMerge(
-                      "w-full py-3.5 rounded-xl font-black uppercase text-sm tracking-wider transition-all duration-200 flex items-center justify-center gap-2",
-                      addSuccess
-                        ? "bg-emerald-500 text-white"
-                        : "bg-gold text-obsidian hover:bg-gold-bright disabled:opacity-40 disabled:cursor-not-allowed",
-                    )}
-                  >
-                    {addSuccess ? (
-                      <>
-                        <CheckCircle2 size={18} /> ¡Añadida!
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={18} /> Añadir al Álbum
-                      </>
-                    )}
-                  </motion.button>
-
-                  {getPagesWithSpace().length === 0 && (
-                    <button
-                      onClick={() => addPage()}
-                      className="cursor-pointer w-full py-2.5 border border-dashed border-white/10 rounded-xl text-xs text-zinc-500 hover:text-gold hover:border-gold/30 transition-all font-bold uppercase tracking-widest"
                     >
-                      + Crear nueva página
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+                      {addSuccess ? (
+                        <>
+                          <CheckCircle2 size={18} /> ¡Añadida!
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={18} /> Añadir al Álbum
+                        </>
+                      )}
+                    </motion.button>
+
+                    {getPagesWithSpace().length === 0 && (
+                      <button
+                        onClick={() => addPage()}
+                        className="cursor-pointer w-full py-2.5 border border-dashed border-white/10 rounded-xl text-xs text-zinc-500 hover:text-gold hover:border-gold/30 transition-all font-bold uppercase tracking-widest"
+                      >
+                        + Crear nueva página
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
         </div>
       )}
