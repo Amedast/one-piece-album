@@ -1,0 +1,195 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { useAlbum } from "@/context/AlbumContext";
+import {
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  GripVertical,
+  Wand2,
+  Settings,
+  Check,
+} from "lucide-react";
+import { twMerge } from "tailwind-merge";
+
+interface AlbumHeaderProps {
+  currentPageIndex: number; // spread index (0-based)
+  totalPages: number; // number of real album pages
+  totalSpreads: number; // totalPages + 1
+  isReorganizeMode: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  onAddPage: () => void;
+  onToggleReorganize: () => void;
+  onOpenCustomCard: () => void;
+  onOpenPageManager: () => void;
+}
+
+export default function AlbumHeader({
+  currentPageIndex,
+  totalPages,
+  totalSpreads,
+  isReorganizeMode,
+  onPrev,
+  onNext,
+  onAddPage,
+  onToggleReorganize,
+  onOpenCustomCard,
+  onOpenPageManager,
+}: AlbumHeaderProps) {
+  const { totalOwned, totalWishlist } = useAlbum();
+
+  // currentPageIndex is the spread index (0-based); convert to 1-based for display
+  const currentSpread = Math.floor(currentPageIndex / 2) + 1;
+
+  // Visual spread count: totalPages real pages + 1 empty left cover + 1 empty right back = (totalPages + 2) / 2
+  const displaySpreads = Math.floor((totalPages + 2) / 2);
+
+  return (
+    <div className="w-full mb-8 space-y-4">
+      {/* Top row: Title + Controls */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        {/* Title */}
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="font-cinzel text-2xl font-bold text-white leading-none">
+              Mi Álbum
+            </h1>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Reorganize toggle */}
+          <motion.button
+            onClick={onToggleReorganize}
+            whileTap={{ scale: 0.95 }}
+            className={twMerge(
+              "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200",
+              isReorganizeMode
+                ? "bg-gold text-obsidian border-gold shadow-lg shadow-gold/20"
+                : "bg-leather-light border-white/10 text-zinc-300 hover:border-gold/40 hover:text-gold",
+            )}
+          >
+            {isReorganizeMode ? (
+              <Check size={16} />
+            ) : (
+              <GripVertical size={16} />
+            )}
+            <span className="text-xs uppercase tracking-wider font-black">
+              {isReorganizeMode ? "Listo" : "Reorganizar"}
+            </span>
+          </motion.button>
+
+          {/* Add page */}
+          <motion.button
+            onClick={onAddPage}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-300 hover:text-white transition-all"
+            title="Añadir página"
+          >
+            <Plus size={16} />
+            <span className="text-xs uppercase tracking-wider font-black hidden sm:inline">
+              Página
+            </span>
+          </motion.button>
+
+          {/* Custom card */}
+          <motion.button
+            onClick={onOpenCustomCard}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-leather-light border border-white/10 hover:border-purple-400/40 rounded-xl text-zinc-300 hover:text-purple-400 transition-all"
+            title="Crear carta personalizada"
+          >
+            <Wand2 size={16} />
+            <span className="text-xs uppercase tracking-wider font-black hidden sm:inline">
+              Custom
+            </span>
+          </motion.button>
+
+          {/* Page manager */}
+          <motion.button
+            onClick={onOpenPageManager}
+            whileTap={{ scale: 0.95 }}
+            className="p-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-400 hover:text-white transition-all"
+            title="Gestionar páginas"
+          >
+            <Settings size={16} />
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Navigation row */}
+      <div className="flex items-center justify-between gap-4">
+        <button
+          onClick={onPrev}
+          disabled={currentPageIndex === 0}
+          className="cursor-pointer flex items-center gap-2 px-5 py-2.5 bg-leather-light border border-white/10 rounded-xl text-zinc-400 hover:text-white hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-all group"
+        >
+          <ChevronLeft
+            size={18}
+            className="group-hover:-translate-x-0.5 transition-transform"
+          />
+          <span className="text-xs font-black uppercase tracking-wider hidden sm:inline">
+            Anterior
+          </span>
+        </button>
+
+        <div>
+          <div className="text-sm font-black text-white font-cinzel text-center mb-1">
+            {currentSpread} / {displaySpreads}
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Page dots */}
+            <div className="flex gap-1.5 items-center">
+              {Array.from({ length: displaySpreads }).map((_, i) => (
+                <div
+                  key={i}
+                  className={twMerge(
+                    "h-1.5 rounded-full transition-all duration-300",
+                    i === currentSpread - 1
+                      ? "w-6 bg-gold"
+                      : "w-1.5 bg-zinc-700 hover:bg-zinc-500 cursor-pointer",
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={onNext}
+          disabled={currentPageIndex + 2 >= totalSpreads}
+          className="cursor-pointer flex items-center gap-2 px-5 py-2.5 bg-leather-light border border-white/10 rounded-xl text-zinc-400 hover:text-white hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-all group"
+        >
+          <span className="text-xs font-black uppercase tracking-wider hidden sm:inline">
+            Siguiente
+          </span>
+          <ChevronRight
+            size={18}
+            className="group-hover:translate-x-0.5 transition-transform"
+          />
+        </button>
+      </div>
+
+      {/* Reorganize mode banner */}
+      {isReorganizeMode && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="bg-gold/10 border border-gold/30 rounded-xl px-5 py-3 flex items-center gap-3"
+        >
+          <GripVertical size={16} className="text-gold shrink-0" />
+          <p className="text-gold text-xs font-bold">
+            <span className="font-black">Modo Reorganizar activo</span> —
+            Arrastra las cartas para cambiar su posición en el álbum. Las cartas
+            vacías actúan como destino de intercambio.
+          </p>
+        </motion.div>
+      )}
+    </div>
+  );
+}
