@@ -25,7 +25,7 @@ export async function loadSets(): Promise<SetData[]> {
 
     // Sort: OP > EB > PRB > Others
     setsArray.sort((a, b) => {
-      const getPriority = (label?: string) => {
+      const getPriority = (label: string | null | undefined) => {
         if (!label) return 999;
         if (label.startsWith("OP-")) return 1;
         if (label.startsWith("EB-")) return 2;
