@@ -83,12 +83,15 @@ export default function AlbumSlotCard({
     <div
       className={twMerge(
         "relative group select-none",
-        isReorganizeMode ? "touch-none" : "touch-pan-x touch-pan-y",
+        isReorganizeMode ? "touch-none [-webkit-touch-callout:none]" : "touch-pan-x touch-pan-y",
         isReorganizeMode && !isEmpty && "cursor-grab active:cursor-grabbing",
         isReorganizeMode && isEmpty && "cursor-pointer",
         isDragTarget && !isEmpty && "scale-[1.04] z-10",
         isDragSource && "opacity-50",
       )}
+      onContextMenu={(e) => {
+        if (isReorganizeMode) e.preventDefault();
+      }}
       draggable={isReorganizeMode && !isEmpty}
       onDragStart={() => {
         if (!isEmpty) onDragStart(pageId, slot.slotId);
