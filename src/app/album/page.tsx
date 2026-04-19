@@ -65,8 +65,8 @@ export default function AlbumPage() {
   // currentPageIndex represents the "spread" index (0 = first spread).
   // We offset by 1 so the first spread has an empty left page and page[0] on the right.
   // Spread k: left = pages[k - 1], right = pages[k]
-  const leftPage = album.pages[currentPageIndex - 1] ?? null;   // null on first spread
-  const rightPage = album.pages[currentPageIndex] ?? null;       // null after last page
+  const leftPage = album.pages[currentPageIndex - 1] ?? null; // null on first spread
+  const rightPage = album.pages[currentPageIndex] ?? null; // null after last page
   const totalPages = album.pages.length;
 
   // Total spreads = totalPages + 1  (empty cover on each side)
@@ -121,7 +121,11 @@ export default function AlbumPage() {
   ) => {
     setSearchCtx({ pageId, slotId, replaceState });
   };
-  const handleCardSelect = (card: Card, state: SlotState, language?: "JP" | "EN") => {
+  const handleCardSelect = (
+    card: Card,
+    state: SlotState,
+    language?: "JP" | "EN",
+  ) => {
     if (searchCtx) {
       updateSlot(searchCtx.pageId, searchCtx.slotId, card, state, language);
       setSearchCtx(null);
@@ -169,18 +173,32 @@ export default function AlbumPage() {
               {leftPage ? (
                 <AlbumPagePanel
                   page={leftPage}
-                  pageNumber={currentPageIndex}          // real page number = spreadIndex - 1 = currentPageIndex
+                  pageNumber={currentPageIndex} // real page number = spreadIndex - 1 = currentPageIndex
                   isReorganizeMode={isReorganizeMode}
                   dragSource={dragSource}
                   dragTarget={dragTarget}
                   onOpenSearch={handleOpenSearch}
                   onClearSlot={clearSlot}
                   onOpenWishlistUrls={(pageId, slotId) => {
-                    const slot = leftPage?.slots.find((s) => s.slotId === slotId);
+                    const slot = leftPage?.slots.find(
+                      (s) => s.slotId === slotId,
+                    );
                     if (slot) setWishlistCtx({ pageId, slot });
                   }}
-                  onOpenCardDetails={(card, pageId, slotId, currentState, currentLanguage) =>
-                    setDetailCtx({ card, pageId, slotId, currentState, currentLanguage })
+                  onOpenCardDetails={(
+                    card,
+                    pageId,
+                    slotId,
+                    currentState,
+                    currentLanguage,
+                  ) =>
+                    setDetailCtx({
+                      card,
+                      pageId,
+                      slotId,
+                      currentState,
+                      currentLanguage,
+                    })
                   }
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
@@ -203,7 +221,7 @@ export default function AlbumPage() {
               {rightPage ? (
                 <AlbumPagePanel
                   page={rightPage}
-                  pageNumber={currentPageIndex + 1}      // real page number = spreadIndex
+                  pageNumber={currentPageIndex + 1} // real page number = spreadIndex
                   isReorganizeMode={isReorganizeMode}
                   dragSource={dragSource}
                   dragTarget={dragTarget}
@@ -215,8 +233,20 @@ export default function AlbumPage() {
                     );
                     if (slot) setWishlistCtx({ pageId, slot });
                   }}
-                  onOpenCardDetails={(card, pageId, slotId, currentState, currentLanguage) =>
-                    setDetailCtx({ card, pageId, slotId, currentState, currentLanguage })
+                  onOpenCardDetails={(
+                    card,
+                    pageId,
+                    slotId,
+                    currentState,
+                    currentLanguage,
+                  ) =>
+                    setDetailCtx({
+                      card,
+                      pageId,
+                      slotId,
+                      currentState,
+                      currentLanguage,
+                    })
                   }
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
@@ -379,9 +409,7 @@ function AlbumPagePanel({
 function CoverPlaceholder({ side }: { side: "left" | "right" }) {
   return (
     <div className="flex-1 bg-leather min-h-[640px] lg:min-h-[700px] flex items-center justify-center">
-      <p className="font-cinzel text-[11px] text-zinc-700 tracking-widest uppercase select-none">
-        {side === "left" ? "Portada" : "Contraportada"}
-      </p>
+      <p className="font-cinzel text-[11px] text-zinc-700 tracking-widest uppercase select-none"></p>
     </div>
   );
 }

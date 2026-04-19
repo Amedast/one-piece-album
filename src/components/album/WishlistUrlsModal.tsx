@@ -20,6 +20,7 @@ interface WishlistUrlsModalProps {
   onClose: () => void;
   pageId: string;
   slot: AlbumSlot;
+  readOnly?: boolean;
 }
 
 const EMPTY_ENTRY: Omit<WishlistUrl, "url"> & { url: string } = {
@@ -33,6 +34,7 @@ export default function WishlistUrlsModal({
   onClose,
   pageId,
   slot,
+  readOnly = false,
 }: WishlistUrlsModalProps) {
   const { updateSlotWishlistUrls } = useAlbum();
 
@@ -173,12 +175,14 @@ export default function WishlistUrlsModal({
                           >
                             <ExternalLink size={11} />
                           </a>
-                          <button
-                            onClick={() => handleRemove(i)}
-                            className="cursor-pointer p-1 text-zinc-600 hover:text-crimson transition-colors"
-                          >
-                            <Trash2 size={11} />
-                          </button>
+                          {!readOnly && (
+                            <button
+                              onClick={() => handleRemove(i)}
+                              className="cursor-pointer p-1 text-zinc-600 hover:text-crimson transition-colors"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          )}
                         </div>
                       </div>
                       {/* Notes row */}
@@ -199,86 +203,97 @@ export default function WishlistUrlsModal({
               </div>
 
               {/* Add entry form */}
-              <div className="bg-obsidian/60 border border-white/6 rounded-2xl p-4 space-y-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600">
-                  Nueva fuente
-                </p>
+              {!readOnly && (
+                <div className="bg-obsidian/60 border border-white/6 rounded-2xl p-4 space-y-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600">
+                    Nueva fuente
+                  </p>
 
-                {/* URL */}
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <LinkIcon
-                      size={13}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
-                    />
-                    <input
-                      type="url"
-                      value={newEntry.url}
-                      onChange={(e) => {
-                        setNewEntry((p) => ({ ...p, url: e.target.value }));
-                        setError("");
-                      }}
-                      onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                      placeholder="https://cardmarket.com/..."
-                      className="w-full bg-leather border border-white/8 focus:border-gold/40 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
-                    />
+                  {/* URL */}
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <LinkIcon
+                        size={13}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+                      />
+                      <input
+                        type="url"
+                        value={newEntry.url}
+                        onChange={(e) => {
+                          setNewEntry((p) => ({ ...p, url: e.target.value }));
+                          setError("");
+                        }}
+                        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                        placeholder="https://cardmarket.com/..."
+                        className="w-full bg-leather border border-white/8 focus:border-gold/40 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
+                      />
+                    </div>
                   </div>
+
+                  {/* Price + Notes row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <Euro
+                        size={12}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+                      />
+                      <input
+                        type="text"
+                        value={newEntry.price}
+                        onChange={(e) =>
+                          setNewEntry((p) => ({ ...p, price: e.target.value }))
+                        }
+                        placeholder="Precio (ej. 2.50€)"
+                        className="w-full bg-leather border border-white/8 focus:border-gold/40 rounded-xl py-2.5 pl-8 pr-3 text-xs text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
+                      />
+                    </div>
+                    <div className="relative">
+                      <MessageSquare
+                        size={12}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+                      />
+                      <input
+                        type="text"
+                        value={newEntry.notes}
+                        onChange={(e) =>
+                          setNewEntry((p) => ({ ...p, notes: e.target.value }))
+                        }
+                        placeholder="Comentario..."
+                        className="w-full bg-leather border border-white/8 focus:border-gold/40 rounded-xl py-2.5 pl-8 pr-3 text-xs text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <p className="text-crimson text-xs font-crimson">{error}</p>
+                  )}
+
+                  <button
+                    onClick={handleAdd}
+                    disabled={!newEntry.url.trim()}
+                    className="cursor-pointer w-full flex items-center justify-center gap-2 py-2.5 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 text-blue-400 rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <Plus size={14} /> Añadir Fuente
+                  </button>
                 </div>
+              )}
 
-                {/* Price + Notes row */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="relative">
-                    <Euro
-                      size={12}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
-                    />
-                    <input
-                      type="text"
-                      value={newEntry.price}
-                      onChange={(e) =>
-                        setNewEntry((p) => ({ ...p, price: e.target.value }))
-                      }
-                      placeholder="Precio (ej. 2.50€)"
-                      className="w-full bg-leather border border-white/8 focus:border-gold/40 rounded-xl py-2.5 pl-8 pr-3 text-xs text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
-                    />
-                  </div>
-                  <div className="relative">
-                    <MessageSquare
-                      size={12}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
-                    />
-                    <input
-                      type="text"
-                      value={newEntry.notes}
-                      onChange={(e) =>
-                        setNewEntry((p) => ({ ...p, notes: e.target.value }))
-                      }
-                      placeholder="Comentario..."
-                      className="w-full bg-leather border border-white/8 focus:border-gold/40 rounded-xl py-2.5 pl-8 pr-3 text-xs text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
-                    />
-                  </div>
-                </div>
-
-                {error && (
-                  <p className="text-crimson text-xs font-crimson">{error}</p>
-                )}
-
+              {/* Save / Close */}
+              {readOnly ? (
                 <button
-                  onClick={handleAdd}
-                  disabled={!newEntry.url.trim()}
-                  className="cursor-pointer w-full flex items-center justify-center gap-2 py-2.5 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 text-blue-400 rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  onClick={onClose}
+                  className="cursor-pointer w-full py-3 bg-leather-light border border-white/10 text-white font-black uppercase text-sm tracking-widest rounded-xl hover:bg-zinc-800 transition-colors font-cinzel"
                 >
-                  <Plus size={14} /> Añadir Fuente
+                  Cerrar
                 </button>
-              </div>
-
-              {/* Save */}
-              <button
-                onClick={handleSave}
-                className="cursor-pointer w-full py-3 bg-gold text-obsidian font-black uppercase text-sm tracking-widest rounded-xl hover:bg-gold-bright transition-colors font-cinzel"
-              >
-                Guardar
-              </button>
+              ) : (
+                <button
+                  onClick={handleSave}
+                  className="cursor-pointer w-full py-3 bg-gold text-obsidian font-black uppercase text-sm tracking-widest rounded-xl hover:bg-gold-bright transition-colors font-cinzel"
+                >
+                  Guardar
+                </button>
+              )}
             </div>
           </motion.div>
         </div>

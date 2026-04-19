@@ -63,4 +63,5 @@ export interface AlbumPage {
 export interface Album {
   id: string;
   pages: AlbumPage[];
+  isPublic?: boolean;
 }

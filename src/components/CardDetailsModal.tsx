@@ -24,6 +24,7 @@ interface CardDetailsModalProps {
   card: Card;
   isOpen: boolean;
   onClose: () => void;
+  readOnly?: boolean;
   // When opened from album slot (card click)
   pageId?: string;
   slotId?: string;
@@ -35,6 +36,7 @@ export default function CardDetailsModal({
   card,
   isOpen,
   onClose,
+  readOnly = false,
   pageId: slotPageId,
   slotId,
   currentSlotState,
@@ -416,7 +418,7 @@ export default function CardDetailsModal({
                 )}
 
                 {/* ---- SLOT CONTEXT: change owned / wishlist ---- */}
-                {isSlotContext ? (
+                {!readOnly && isSlotContext ? (
                   <div className="mt-auto pt-6 border-t border-white/6 space-y-4">
                     <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
                       Estado en el Álbum
@@ -467,7 +469,7 @@ export default function CardDetailsModal({
                       </motion.p>
                     )}
                   </div>
-                ) : (
+                ) : !readOnly ? (
                   /* ---- DATABASE CONTEXT: add to album ---- */
                   <div className="mt-auto pt-6 border-t border-white/6 space-y-4">
                     <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
@@ -596,7 +598,8 @@ export default function CardDetailsModal({
                       </button>
                     )}
                   </div>
-                )}
+                ) : null}
+
               </div>
             )}
           </motion.div>
