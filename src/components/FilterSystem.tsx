@@ -328,13 +328,6 @@ export default function FilterSystem({
                     {showAltArtsOnly && <Check size={18} />}
                   </button>
                 </div>
-
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="cursor-pointer w-full mt-5 py-3 bg-gold text-obsidian rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-gold-bright transition-colors font-cinzel"
-                >
-                  Aplicar Filtros
-                </button>
               </motion.div>
             </>
           )}

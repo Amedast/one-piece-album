@@ -166,6 +166,9 @@ export default function AlbumSearchModal({
     return () => clearTimeout(timer);
   }, [
     isOpen,
+    query,
+    selectedTypes,
+    selectedRarities,
     selectedColors,
     selectedSets,
     showAltArtsOnly,
@@ -180,7 +183,8 @@ export default function AlbumSearchModal({
         const parsed = JSON.parse(cached);
         if (parsed.searchQuery !== undefined) setQuery(parsed.searchQuery);
         if (parsed.selectedTypes) setSelectedTypes(parsed.selectedTypes);
-        if (parsed.selectedRarities) setSelectedRarities(parsed.selectedRarities);
+        if (parsed.selectedRarities)
+          setSelectedRarities(parsed.selectedRarities);
         if (parsed.selectedColors) setSelectedColors(parsed.selectedColors);
         if (parsed.selectedSets) setSelectedSets(parsed.selectedSets);
         if (parsed.showAltArtsOnly !== undefined)
@@ -460,12 +464,12 @@ export default function AlbumSearchModal({
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden bg-obsidian/30 rounded-2xl border border-white/5"
+                      className="overflow-hidden bg-obsidian/30 rounded-2xl border border-white/5 max-h-[60vh] flex flex-col"
                     >
-                      <div className="p-5 space-y-6">
+                      <div className="p-5 space-y-3 overflow-y-auto custom-scrollbar">
                         <div className="flex items-center justify-between">
                           <h4 className="font-cinzel text-xs font-bold text-white uppercase tracking-widest">
-                            Refinar Búsqueda
+                            Filtros
                           </h4>
                           <button
                             onClick={onReset}
@@ -576,13 +580,6 @@ export default function AlbumSearchModal({
                             {showAltArtsOnly && <Check size={14} />}
                           </button>
                         </div>
-
-                        <button
-                          onClick={() => setShowFilters(false)}
-                          className="cursor-pointer w-full py-2.5 bg-gold text-obsidian rounded-xl font-black uppercase text-xs tracking-widest hover:bg-gold-bright transition-colors font-cinzel"
-                        >
-                          Aplicar Filtros
-                        </button>
                       </div>
                     </motion.div>
                   )}
@@ -624,7 +621,10 @@ export default function AlbumSearchModal({
 
                 {/* Infinite Scroll Trigger & Loader */}
                 {tab === "api" && (
-                  <div ref={ref} className="mt-8 py-6 flex justify-center w-full">
+                  <div
+                    ref={ref}
+                    className="mt-8 py-6 flex justify-center w-full"
+                  >
                     {isFetchingMore && (
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 size={24} className="text-gold animate-spin" />
