@@ -42,7 +42,7 @@ export default function CardDetailsModal({
   currentSlotState,
   currentLanguage,
 }: CardDetailsModalProps) {
-  const { album, updateSlot, addPage } = useAlbum();
+  const { album, updateSlot, addPage, clearSlot } = useAlbum();
 
   // When opened from a slot, we can toggle its state
   const isSlotContext = !!(slotPageId && slotId && currentSlotState);
@@ -84,6 +84,24 @@ export default function CardDetailsModal({
     updateSlot(slotPageId, slotId, card, finalState, finalLang);
     setStateChanged(true);
     setTimeout(() => setStateChanged(false), 1500);
+  };
+
+  const handleRemove = () => {
+    if (slotPageId && slotId) {
+      clearSlot(slotPageId, slotId);
+      onClose();
+    }
+  };
+
+  const handleOpenUrls = () => {
+    if (slotPageId && slotId) {
+      window.dispatchEvent(
+        new CustomEvent("open-wishlist-urls", {
+          detail: { pageId: slotPageId, slotId },
+        }),
+      );
+      onClose();
+    }
   };
 
   const isRare =
@@ -154,17 +172,18 @@ export default function CardDetailsModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 40 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-5xl bg-leather border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-black flex flex-col md:flex-row"
+            className="relative w-full max-w-5xl bg-leather border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-black flex flex-col md:flex-row max-h-[95vh] md:max-h-[85vh]"
           >
             {/* Left: Card art */}
-            <div className="w-full md:w-[42%] p-3 bg-obsidian flex items-center justify-center border-b md:border-b-0 md:border-r border-white/5 relative">
+            <div className="w-full md:w-[42%] p-4 md:p-6 lg:p-3 shrink-0 bg-obsidian flex items-center justify-center border-b md:border-b-0 md:border-r border-white/5 relative">
               {/* Rare glow bg */}
               {isRare && (
                 <div className="absolute inset-0 bg-linear-to-br from-gold/5 to-transparent pointer-events-none" />
               )}
               <motion.div
                 className={twMerge(
-                  "relative w-full max-w-96 aspect-63/88 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10",
+                  "relative aspect-[63/88] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10",
+                  "w-auto max-h-[30vh] sm:max-h-[40vh] md:max-h-none md:w-full md:max-w-96",
                   isRare && "ring-gold/30",
                 )}
                 style={{ transformStyle: "preserve-3d" }}
@@ -186,27 +205,27 @@ export default function CardDetailsModal({
 
             {/* Right: Details / Mini Album */}
             {viewMiniAlbum ? (
-              <div className="flex-1 flex flex-col p-8 md:p-10 max-h-[85vh]">
-                <div className="flex items-center gap-4 mb-6">
+              <div className="flex-1 flex flex-col p-5 md:p-10 overflow-hidden">
+                <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6 shrink-0">
                   <button
                     onClick={() => setViewMiniAlbum(false)}
-                    className="p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
+                    className="p-2 md:p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
                   >
-                    <ChevronLeft size={20} />
+                    <ChevronLeft size={18} className="md:w-5 md:h-5" />
                   </button>
                   <div>
-                    <h2 className="font-cinzel text-xl md:text-2xl font-bold text-white leading-tight">
+                    <h2 className="font-cinzel text-lg md:text-2xl font-bold text-white leading-tight">
                       Seleccionar Hueco
                     </h2>
-                    <p className="text-zinc-500 text-xs mt-1 font-bold uppercase tracking-widest">
+                    <p className="text-zinc-500 text-[10px] md:text-xs mt-0.5 font-bold uppercase tracking-widest">
                       Mini Álbum
                     </p>
                   </div>
                   <button
                     onClick={onClose}
-                    className="cursor-pointer p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all shrink-0 ml-auto"
+                    className="cursor-pointer p-2 md:p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all shrink-0 ml-auto"
                   >
-                    <X size={20} />
+                    <X size={18} className="md:w-5 md:h-5" />
                   </button>
                 </div>
 
@@ -298,9 +317,9 @@ export default function CardDetailsModal({
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col overflow-y-auto max-h-[85vh] p-8 md:p-10">
+              <div className="flex-1 flex flex-col p-5 md:p-10 overflow-y-auto">
                 {/* Close */}
-                <div className="flex items-start justify-between mb-6">
+                <div className="flex items-start justify-between mb-4 md:mb-6 shrink-0">
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <span className="px-2.5 py-1 bg-leather-light rounded-lg text-[9px] font-black text-zinc-400 border border-white/8 tracking-wider font-mono">
@@ -321,18 +340,18 @@ export default function CardDetailsModal({
                         </span>
                       )}
                     </div>
-                    <h2 className="font-cinzel text-3xl md:text-4xl font-bold text-white leading-tight">
+                    <h2 className="font-cinzel text-2xl md:text-4xl font-bold text-white leading-tight">
                       {card.name}
                     </h2>
-                    <p className="text-zinc-500 text-xs mt-1 font-bold uppercase tracking-widest">
+                    <p className="text-zinc-500 text-[10px] md:text-xs mt-1 font-bold uppercase tracking-widest">
                       {card.type}
                     </p>
                   </div>
                   <button
                     onClick={onClose}
-                    className="cursor-pointer p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all shrink-0 ml-4"
+                    className="cursor-pointer p-2 md:p-2.5 bg-leather-light rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all shrink-0 ml-4"
                   >
-                    <X size={20} />
+                    <X size={18} className="md:w-5 md:h-5" />
                   </button>
                 </div>
 
@@ -454,8 +473,26 @@ export default function CardDetailsModal({
                         onClick={() => handleToggleSlotState(slotState, "JP")}
                         icon={null}
                         label="JP"
-                        activeClass="cursor-pointer bg-red-500/20 text-red-400 border-red-500/50"
+                        activeClass="cursor-pointer bg-purple-500/20 text-purple-400 border-purple-500/50"
                       />
+                    </div>
+
+                    {/* Acciones extra: Eliminar y Ver Enlaces (si es wishlist) */}
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={handleRemove}
+                        className="cursor-pointer flex-1 py-2.5 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-black uppercase tracking-wider hover:bg-red-500/20 transition-all"
+                      >
+                        Eliminar del álbum
+                      </button>
+                      {slotState === "WISHLIST" && (
+                        <button
+                          onClick={handleOpenUrls}
+                          className="cursor-pointer flex-1 py-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 text-xs font-black uppercase tracking-wider hover:bg-blue-500/20 transition-all"
+                        >
+                          Ver Enlaces
+                        </button>
+                      )}
                     </div>
 
                     {stateChanged && (
@@ -463,7 +500,7 @@ export default function CardDetailsModal({
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        className="text-emerald-400 text-xs font-bold flex items-center gap-1.5"
+                        className="text-emerald-400 text-xs font-bold flex items-center gap-1.5 justify-center mt-2"
                       >
                         <CheckCircle2 size={14} /> Estado actualizado
                       </motion.p>
@@ -599,7 +636,6 @@ export default function CardDetailsModal({
                     )}
                   </div>
                 ) : null}
-
               </div>
             )}
           </motion.div>

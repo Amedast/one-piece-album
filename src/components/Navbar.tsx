@@ -25,8 +25,16 @@ export default function Navbar() {
         setShowUserMenu(false);
       }
     };
+    
+    const authModalHandler = () => setShowAuth(true);
+
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    window.addEventListener("open-auth-modal", authModalHandler);
+    
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("open-auth-modal", authModalHandler);
+    };
   }, []);
 
   return (

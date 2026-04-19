@@ -127,19 +127,28 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
               {/* Tabs */}
               <div className="flex bg-obsidian rounded-xl p-1 mb-6">
-                {(["login", "register"] as const).map((t) => (
+                <button
+                  onClick={() => switchTab("login")}
+                  className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+                    tab === "login"
+                      ? "bg-gold text-obsidian shadow-md shadow-gold/20"
+                      : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  Iniciar Sesión
+                </button>
+                {process.env.NEXT_PUBLIC_ENABLE_REGISTRATION !== "false" && (
                   <button
-                    key={t}
-                    onClick={() => switchTab(t)}
+                    onClick={() => switchTab("register")}
                     className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
-                      tab === t
+                      tab === "register"
                         ? "bg-gold text-obsidian shadow-md shadow-gold/20"
                         : "text-zinc-500 hover:text-zinc-300"
                     }`}
                   >
-                    {t === "login" ? "Iniciar Sesión" : "Registrarse"}
+                    Registrarse
                   </button>
-                ))}
+                )}
               </div>
             </div>
 

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useAlbum } from "@/context/AlbumContext";
+import { useSession } from "@/lib/auth-client";
 import {
   BookOpen,
   ChevronLeft,
@@ -14,6 +15,8 @@ import {
   Globe,
   Lock,
   Save,
+  Columns,
+  Square,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
@@ -22,6 +25,8 @@ interface AlbumHeaderProps {
   totalPages: number; // number of real album pages
   totalSpreads: number; // totalPages + 1
   isReorganizeMode: boolean;
+  isSinglePageView: boolean;
+  onToggleSinglePageView: () => void;
   onPrev: () => void;
   onNext: () => void;
   onAddPage: () => void;
@@ -35,6 +40,8 @@ export default function AlbumHeader({
   totalPages,
   totalSpreads,
   isReorganizeMode,
+  isSinglePageView,
+  onToggleSinglePageView,
   onPrev,
   onNext,
   onAddPage,
@@ -43,12 +50,25 @@ export default function AlbumHeader({
   onOpenPageManager,
 }: AlbumHeaderProps) {
   const { totalOwned, totalWishlist, isPublic, togglePublic, hasUnsavedChanges, saveAlbumToServer } = useAlbum();
+  const { data: session } = useSession();
 
-  // currentPageIndex is the spread index (0-based); convert to 1-based for display
-  const currentSpread = Math.floor(currentPageIndex / 2) + 1;
+  // currentPageIndex is the spread index (0-based) in double mode; or page index (0-based) in single mode
+  const currentSpread = isSinglePageView 
+    ? currentPageIndex + 1 
+    : Math.floor(currentPageIndex / 2) + 1;
 
-  // Visual spread count: totalPages real pages + 1 empty left cover + 1 empty right back = (totalPages + 2) / 2
-  const displaySpreads = Math.floor((totalPages + 2) / 2);
+  // Visual spread count
+  const displaySpreads = isSinglePageView 
+    ? totalPages + 2 
+    : Math.floor((totalPages + 2) / 2);
+
+  const handleSave = async () => {
+    if (!session?.user) {
+      window.dispatchEvent(new Event("open-auth-modal"));
+      return;
+    }
+    await saveAlbumToServer();
+  };
 
   return (
     <div className="w-full mb-8 space-y-4">
@@ -65,12 +85,22 @@ export default function AlbumHeader({
 
         {/* Action buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Layout toggle view */}
+          <motion.button
+            onClick={onToggleSinglePageView}
+            whileTap={{ scale: 0.95 }}
+            className="p-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-400 hover:text-white transition-all hidden md:flex"
+            title={isSinglePageView ? "Ver dos páginas" : "Ver una página"}
+          >
+            {isSinglePageView ? <Columns size={16} /> : <Square size={16} />}
+          </motion.button>
+
           {/* Save modifications */}
           {hasUnsavedChanges && (
             <motion.button
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              onClick={saveAlbumToServer}
+              onClick={handleSave}
               whileTap={{ scale: 0.95 }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:bg-blue-500/30 cursor-pointer"
             >

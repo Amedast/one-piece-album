@@ -83,7 +83,9 @@ export default function AlbumSlotCard({
     <div
       className={twMerge(
         "relative group select-none",
+        isReorganizeMode ? "touch-none" : "touch-pan-x touch-pan-y",
         isReorganizeMode && !isEmpty && "cursor-grab active:cursor-grabbing",
+        isReorganizeMode && isEmpty && "cursor-pointer",
         isDragTarget && !isEmpty && "scale-[1.04] z-10",
         isDragSource && "opacity-50",
       )}
@@ -118,10 +120,9 @@ export default function AlbumSlotCard({
             "border-2 border-dashed border-white/8 hover:border-gold/30",
           // Drag target highlight
           isDragTarget && "ring-2 ring-gold border border-gold/50",
-          // Reorganize mode visual
-          isReorganizeMode && !isEmpty && "ring-1 ring-gold/30",
-          // Clickable card cursor
-          !isEmpty && !isReorganizeMode && "cursor-pointer",
+          // Reorganize mode visual (not dragged)
+          // Clickable cursor
+          (!isEmpty || isReorganizeMode) && "cursor-pointer",
         )}
         onClick={handleCardClick}
         transition={{ type: "spring", stiffness: 380, damping: 22 }}
@@ -129,13 +130,13 @@ export default function AlbumSlotCard({
       >
         {/* Empty State */}
         {isEmpty ? (
-          readOnly ? null : (
+          readOnly || isReorganizeMode ? null : (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenSearch(pageId, slot.slotId, "OWNED");
               }}
-              className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-gold transition-colors duration-200 group/add cursor-pointer"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-gold transition-colors duration-200 group/add cursor-pointer pointer-events-auto"
             >
               <div className="w-8 h-8 rounded-full border border-dashed border-zinc-700 group-hover/add:border-gold/50 flex items-center justify-center transition-colors">
                 <Plus size={16} strokeWidth={2} />

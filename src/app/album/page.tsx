@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAlbum } from "@/context/AlbumContext";
 import AlbumHeader from "@/components/album/AlbumHeader";
@@ -43,6 +43,22 @@ export default function AlbumPage() {
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isReorganizeMode, setIsReorganizeMode] = useState(false);
+  const [isSinglePageView, setIsSinglePageView] = useState(false);
+
+  // Auto-detect mobile to set single page view by default
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSinglePageView(true);
+      } else {
+        setIsSinglePageView(false);
+      }
+    };
+    // init
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Drag state
   const [dragSource, setDragSource] = useState<{
@@ -61,29 +77,57 @@ export default function AlbumPage() {
   const [isPageManagerOpen, setIsPageManagerOpen] = useState(false);
   const [detailCtx, setDetailCtx] = useState<DetailContext | null>(null);
 
+  useEffect(() => {
+    const handleOpenWishlist = (e: CustomEvent) => {
+      const { pageId, slotId } = e.detail;
+      const albumPage = album.pages.find((p) => p.pageId === pageId);
+      const slot = albumPage?.slots.find((s) => s.slotId === slotId);
+      if (pageId && slot) {
+        setWishlistCtx({ pageId, slot });
+      }
+    };
+    window.addEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
+    return () => window.removeEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
+  }, [album]);
+
   /* ---- Pages ---- */
-  // currentPageIndex represents the "spread" index (0 = first spread).
-  // We offset by 1 so the first spread has an empty left page and page[0] on the right.
-  // Spread k: left = pages[k - 1], right = pages[k]
-  const leftPage = album.pages[currentPageIndex - 1] ?? null; // null on first spread
-  const rightPage = album.pages[currentPageIndex] ?? null; // null after last page
+  // In Double Page View: currentPageIndex is the even index (0,2,4) representing the left page
+  // Spread k: left = pages[currentPageIndex - 1], right = pages[currentPageIndex]
+  // In Single Page View: currentPageIndex is the exact page shown
+  const leftPage = isSinglePageView 
+    ? null
+    : album.pages[currentPageIndex - 1] ?? null; 
+  const rightPage = isSinglePageView 
+    ? album.pages[currentPageIndex - 1] ?? null // if single, current page is pages[currentPageIndex - 1] (0 is cover)
+    : album.pages[currentPageIndex] ?? null; 
   const totalPages = album.pages.length;
 
-  // Total spreads = totalPages + 1  (empty cover on each side)
-  const totalSpreads = totalPages + 1;
+  // Double View: totalPages + 1  (empty cover on each side). 
+  // Single View: totalPages + 2 (empty cover on both sides - cover is 0, back is totalPages+1)
+  const totalSpreads = isSinglePageView ? totalPages + 2 : totalPages + 1;
 
-  const handlePrev = () => setCurrentPageIndex((i) => Math.max(0, i - 2));
+  const handlePrev = () => {
+    setCurrentPageIndex((i) => Math.max(0, i - (isSinglePageView ? 1 : 2)));
+  };
+  
   const handleNext = () => {
-    // Allow advancing while there are more spreads
-    if (currentPageIndex + 2 < totalSpreads) setCurrentPageIndex((i) => i + 2);
+    const step = isSinglePageView ? 1 : 2;
+    if (currentPageIndex + step < totalSpreads) {
+      setCurrentPageIndex((i) => i + step);
+    }
   };
+  
   const handleNavigateToPage = (index: number) => {
-    // index is the 0-based page index; in spread terms it sits at spread (index + 1)
-    const spreadIndex = index + 1;
-    setCurrentPageIndex(spreadIndex % 2 === 0 ? spreadIndex : spreadIndex - 1);
+    // index is the 0-based page index
+    if (isSinglePageView) {
+      setCurrentPageIndex(index + 1); // 1-based since 0 is cover
+    } else {
+      const spreadIndex = index + 1;
+      setCurrentPageIndex(spreadIndex % 2 === 0 ? spreadIndex : spreadIndex - 1);
+    }
   };
 
-  /* ---- Drag ---- */
+  /* ---- Drag / Reorganize ---- */
   const handleDragStart = (pageId: string, slotId: string) => {
     setDragSource({ pageId, slotId });
     setDragTarget(null);
@@ -155,6 +199,8 @@ export default function AlbumPage() {
           totalPages={totalPages}
           totalSpreads={totalSpreads}
           isReorganizeMode={isReorganizeMode}
+          isSinglePageView={isSinglePageView}
+          onToggleSinglePageView={() => setIsSinglePageView(!isSinglePageView)}
           onPrev={handlePrev}
           onNext={handleNext}
           onAddPage={() => addPage()}
@@ -170,58 +216,62 @@ export default function AlbumPage() {
             {/* The spread pages */}
             <div className="flex flex-col lg:flex-row gap-0">
               {/* Left Page — null on the very first spread (cover) */}
-              {leftPage ? (
-                <AlbumPagePanel
-                  page={leftPage}
-                  pageNumber={currentPageIndex} // real page number = spreadIndex - 1 = currentPageIndex
-                  isReorganizeMode={isReorganizeMode}
-                  dragSource={dragSource}
-                  dragTarget={dragTarget}
-                  onOpenSearch={handleOpenSearch}
-                  onClearSlot={clearSlot}
-                  onOpenWishlistUrls={(pageId, slotId) => {
-                    const slot = leftPage?.slots.find(
-                      (s) => s.slotId === slotId,
-                    );
-                    if (slot) setWishlistCtx({ pageId, slot });
-                  }}
-                  onOpenCardDetails={(
-                    card,
-                    pageId,
-                    slotId,
-                    currentState,
-                    currentLanguage,
-                  ) =>
-                    setDetailCtx({
+              {!isSinglePageView && (
+                leftPage ? (
+                  <AlbumPagePanel
+                    page={leftPage}
+                    pageNumber={currentPageIndex} // real page number = spreadIndex - 1 = currentPageIndex
+                    isReorganizeMode={isReorganizeMode}
+                    dragSource={dragSource}
+                    dragTarget={dragTarget}
+                    onOpenSearch={handleOpenSearch}
+                    onClearSlot={clearSlot}
+                    onOpenWishlistUrls={(pageId, slotId) => {
+                      const slot = leftPage?.slots.find(
+                        (s) => s.slotId === slotId,
+                      );
+                      if (slot) setWishlistCtx({ pageId, slot });
+                    }}
+                    onOpenCardDetails={(
                       card,
                       pageId,
                       slotId,
                       currentState,
                       currentLanguage,
-                    })
-                  }
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  onDragEnd={handleDragEnd}
-                  side="left"
-                />
-              ) : (
-                <CoverPlaceholder side="left" />
+                    ) =>
+                      setDetailCtx({
+                        card,
+                        pageId,
+                        slotId,
+                        currentState,
+                        currentLanguage,
+                      })
+                    }
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    onDragEnd={handleDragEnd}
+                    side="left"
+                  />
+                ) : (
+                  <CoverPlaceholder side="left" />
+                )
               )}
 
               {/* Spine */}
-              <div className="hidden lg:flex flex-col items-center justify-between py-16 px-3 bg-spine gap-6">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="ring-hole" />
-                ))}
-              </div>
+              {!isSinglePageView && (
+                <div className="hidden lg:flex flex-col items-center justify-between py-16 px-3 bg-spine gap-6">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="ring-hole" />
+                  ))}
+                </div>
+              )}
 
               {/* Right Page — null after the last real page (back cover) */}
               {rightPage ? (
                 <AlbumPagePanel
                   page={rightPage}
-                  pageNumber={currentPageIndex + 1} // real page number = spreadIndex
+                  pageNumber={isSinglePageView ? currentPageIndex : currentPageIndex + 1} // real page number = spreadIndex
                   isReorganizeMode={isReorganizeMode}
                   dragSource={dragSource}
                   dragTarget={dragTarget}
@@ -252,8 +302,10 @@ export default function AlbumPage() {
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   onDragEnd={handleDragEnd}
-                  side="right"
+                  side={isSinglePageView ? "left" : "right"}
                 />
+              ) : isSinglePageView && currentPageIndex === 0 ? (
+                <CoverPlaceholder side="right" />
               ) : (
                 <EmptyPagePlaceholder onAddPage={() => addPage()} />
               )}
@@ -349,9 +401,9 @@ function AlbumPagePanel({
   side: "left" | "right";
 }) {
   return (
-    <div className="flex-1 bg-leather min-h-[640px] lg:min-h-[700px]">
+    <div className="flex-1 bg-leather min-h-[480px] lg:min-h-[700px]">
       {/* Page header */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-white/5">
+      <div className="flex items-center justify-between px-4 lg:px-8 py-3 lg:py-4 border-b border-white/5">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
           <span className="font-cinzel text-[11px] text-zinc-500 tracking-widest uppercase">
@@ -364,7 +416,7 @@ function AlbumPagePanel({
       </div>
 
       {/* Card grid: 4 cols × 3 rows */}
-      <div className="grid grid-cols-4 gap-4 p-8">
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-4 p-3 sm:p-8">
         {page.slots.map((slot, index) => (
           <AlbumSlotCard
             key={slot.slotId}
