@@ -1,15 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlbumSlot, Card } from "@/types";
-import {
-  X,
-  GripVertical,
-  Bookmark,
-  Link as LinkIcon,
-  Plus,
-} from "lucide-react";
+import { X, GripVertical, Link as LinkIcon, Plus } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
 interface AlbumSlotCardProps {
@@ -19,6 +13,7 @@ interface AlbumSlotCardProps {
   isReorganizeMode: boolean;
   isDragSource: boolean;
   isDragTarget: boolean;
+  readOnly?: boolean;
   onOpenSearch: (
     pageId: string,
     slotId: string,
@@ -47,6 +42,7 @@ export default function AlbumSlotCard({
   isReorganizeMode,
   isDragSource,
   isDragTarget,
+  readOnly = false,
   onOpenSearch,
   onClearSlot,
   onOpenWishlistUrls,
@@ -76,6 +72,12 @@ export default function AlbumSlotCard({
       onOpenCardDetails(card);
     }
   };
+
+  const showActions =
+    hovered &&
+    !isReorganizeMode &&
+    !isEmpty &&
+    (!readOnly || (isWishlist && hasWishlistUrls));
 
   return (
     <div
@@ -110,15 +112,10 @@ export default function AlbumSlotCard({
 
       <motion.div
         className={twMerge(
-          "relative w-full aspect-[63/88] rounded-xl overflow-hidden transition-all duration-300 bg-leather-light",
+          "relative w-full aspect-63/88 rounded-xl overflow-hidden transition-all duration-300 bg-leather-light",
           // Empty slot
           isEmpty &&
             "border-2 border-dashed border-white/8 hover:border-gold/30",
-          // Owned
-          isOwned && "shadow-lg shadow-black/60",
-          isOwned && isRare && cardGlow,
-          // Wishlist
-          isWishlist && "opacity-40 grayscale",
           // Drag target highlight
           isDragTarget && "ring-2 ring-gold border border-gold/50",
           // Reorganize mode visual
@@ -127,50 +124,35 @@ export default function AlbumSlotCard({
           !isEmpty && !isReorganizeMode && "cursor-pointer",
         )}
         onClick={handleCardClick}
-        whileHover={
-          !isReorganizeMode && !isEmpty
-            ? { scale: 1.04, rotateY: 6, rotateX: 2 }
-            : {}
-        }
         transition={{ type: "spring", stiffness: 380, damping: 22 }}
         style={{ transformStyle: "preserve-3d" }}
       >
         {/* Empty State */}
         {isEmpty ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenSearch(pageId, slot.slotId, "OWNED");
-            }}
-            className="cursor-pointer absolute inset-0 flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-gold transition-colors duration-200 group/add cursor-pointer"
-          >
-            <div className="w-8 h-8 rounded-full border border-dashed border-zinc-700 group-hover/add:border-gold/50 flex items-center justify-center transition-colors">
-              <Plus size={16} strokeWidth={2} />
-            </div>
-          </button>
+          readOnly ? null : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenSearch(pageId, slot.slotId, "OWNED");
+              }}
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-gold transition-colors duration-200 group/add cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full border border-dashed border-zinc-700 group-hover/add:border-gold/50 flex items-center justify-center transition-colors">
+                <Plus size={16} strokeWidth={2} />
+              </div>
+            </button>
+          )
         ) : (
           <>
             {/* Card image */}
             <div
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${isWishlist ? "grayscale opacity-60" : ""}`}
               style={{ backgroundImage: `url(${imgSrc})` }}
             />
-
-            {/* Rare shimmer overlay */}
-            {isOwned && isRare && (
-              <div className="absolute inset-0 bg-linear-to-tr from-gold/10 via-transparent to-white/5 pointer-events-none mix-blend-overlay" />
-            )}
 
             {/* Hover overlay for card details hint */}
             {!isReorganizeMode && (
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 pointer-events-none rounded-xl" />
-            )}
-
-            {/* Wishlist bookmark indicator */}
-            {isWishlist && (
-              <div className="absolute top-2 right-2 p-1 bg-black/60 rounded-md backdrop-blur-sm">
-                <Bookmark size={12} className="text-white/70 fill-white/70" />
-              </div>
             )}
 
             {/* Language badge */}
@@ -187,13 +169,6 @@ export default function AlbumSlotCard({
                 {slot.language}
               </div>
             )}
-
-            {/* Wishlist URL indicator */}
-            {isWishlist && hasWishlistUrls && (
-              <div className="absolute bottom-2 right-2 p-1 bg-black/60 rounded-md backdrop-blur-sm">
-                <LinkIcon size={10} className="text-blue-400" />
-              </div>
-            )}
           </>
         )}
 
@@ -207,9 +182,9 @@ export default function AlbumSlotCard({
         )}
       </motion.div>
 
-      {/* Action buttons — only in non-reorganize mode, only when card exists */}
+      {/* Action buttons */}
       <AnimatePresence>
-        {hovered && !isReorganizeMode && !isEmpty && (
+        {showActions && (
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -218,19 +193,21 @@ export default function AlbumSlotCard({
             className="absolute -top-2 -right-2 flex flex-col gap-1 z-30"
           >
             {/* Clear */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClearSlot(pageId, slot.slotId);
-              }}
-              className="cursor-pointer p-1 bg-crimson hover:bg-crimson-light text-white rounded-full shadow-lg shadow-black/50 transition-colors"
-              title="Quitar carta"
-            >
-              <X size={10} strokeWidth={3} />
-            </button>
+            {!readOnly && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClearSlot(pageId, slot.slotId);
+                }}
+                className="cursor-pointer p-1 bg-crimson hover:bg-crimson-light text-white rounded-full shadow-lg shadow-black/50 transition-colors"
+                title="Quitar carta"
+              >
+                <X size={10} strokeWidth={3} />
+              </button>
+            )}
 
             {/* Wishlist URLs (only for wishlist cards) */}
-            {isWishlist && (
+            {isWishlist && (!readOnly || hasWishlistUrls) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

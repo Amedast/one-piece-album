@@ -11,6 +11,9 @@ import {
   Wand2,
   Settings,
   Check,
+  Globe,
+  Lock,
+  Save,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
@@ -39,7 +42,7 @@ export default function AlbumHeader({
   onOpenCustomCard,
   onOpenPageManager,
 }: AlbumHeaderProps) {
-  const { totalOwned, totalWishlist } = useAlbum();
+  const { totalOwned, totalWishlist, isPublic, togglePublic, hasUnsavedChanges, saveAlbumToServer } = useAlbum();
 
   // currentPageIndex is the spread index (0-based); convert to 1-based for display
   const currentSpread = Math.floor(currentPageIndex / 2) + 1;
@@ -62,6 +65,22 @@ export default function AlbumHeader({
 
         {/* Action buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Save modifications */}
+          {hasUnsavedChanges && (
+            <motion.button
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={saveAlbumToServer}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:bg-blue-500/30 cursor-pointer"
+            >
+              <Save size={16} className="animate-pulse" />
+              <span className="text-xs uppercase tracking-wider font-black">
+                Guardar Cambios
+              </span>
+            </motion.button>
+          )}
+
           {/* Reorganize toggle */}
           <motion.button
             onClick={onToggleReorganize}
@@ -106,6 +125,24 @@ export default function AlbumHeader({
             <Wand2 size={16} />
             <span className="text-xs uppercase tracking-wider font-black hidden sm:inline">
               Custom
+            </span>
+          </motion.button>
+
+          {/* Visibility toggle */}
+          <motion.button
+            onClick={togglePublic}
+            whileTap={{ scale: 0.95 }}
+            className={twMerge(
+              "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200",
+              isPublic
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                : "bg-leather-light border-white/10 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+            )}
+            title={isPublic ? "Tu álbum es público" : "Tu álbum es privado"}
+          >
+            {isPublic ? <Globe size={16} /> : <Lock size={16} />}
+            <span className="text-xs uppercase tracking-wider font-black hidden sm:inline">
+              {isPublic ? "Público" : "Privado"}
             </span>
           </motion.button>
 

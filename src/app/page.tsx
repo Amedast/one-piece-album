@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { fetchCards } from "@/lib/api";
-import { Card, GetCardsPayload } from "@/types";
+import { Card, GetCardsPayload, SlotState } from "@/types";
+import { useAlbum } from "@/context/AlbumContext";
 import CardComponent from "@/components/CardComponent";
 import FilterSystem from "@/components/FilterSystem";
 import CardDetailsModal from "@/components/CardDetailsModal";
@@ -19,6 +20,25 @@ export default function Home() {
   const [showAltArtsOnly, setShowAltArtsOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+
+  const { album } = useAlbum();
+
+  const getCardState = useCallback(
+    (cardId: string | number): SlotState => {
+      if (!album?.pages) return "EMPTY";
+      let state: SlotState = "EMPTY";
+      for (const p of album.pages) {
+        for (const slot of p.slots) {
+          if (String(slot.cardId) === String(cardId)) {
+            if (slot.state === "OWNED") return "OWNED";
+            if (slot.state === "WISHLIST") state = "WISHLIST";
+          }
+        }
+      }
+      return state;
+    },
+    [album],
+  );
 
   const loadCards = useCallback(async () => {
     setIsLoading(true);
@@ -128,7 +148,10 @@ export default function Home() {
                     onClick={() => setSelectedCard(card)}
                     className="cursor-pointer"
                   >
-                    <CardComponent card={card} />
+                    <CardComponent
+                      card={card}
+                      slotState={getCardState(card.id)}
+                    />
                   </motion.div>
                 ))}
               </div>

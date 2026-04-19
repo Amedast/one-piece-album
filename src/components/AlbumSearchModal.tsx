@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import CardComponent from "./CardComponent";
 
 interface AlbumSearchModalProps {
   isOpen: boolean;
@@ -33,7 +34,24 @@ export default function AlbumSearchModal({
   onSelect,
   defaultState = "OWNED",
 }: AlbumSearchModalProps) {
-  const { customCards } = useAlbum();
+  const { customCards, album } = useAlbum();
+
+  const getCardState = useCallback(
+    (cardId: string | number): SlotState => {
+      if (!album?.pages) return "EMPTY";
+      let state: SlotState = "EMPTY";
+      for (const p of album.pages) {
+        for (const slot of p.slots) {
+          if (String(slot.cardId) === String(cardId)) {
+            if (slot.state === "OWNED") return "OWNED";
+            if (slot.state === "WISHLIST") state = "WISHLIST";
+          }
+        }
+      }
+      return state;
+    },
+    [album],
+  );
 
   const [tab, setTab] = useState<TabType>("api");
   const [cards, setCards] = useState<Card[]>([]);
@@ -268,37 +286,21 @@ export default function AlbumSearchModal({
               </div>
             ) : displayCards.length > 0 ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                {displayCards.map((card) => (
-                  <motion.button
-                    key={card.id}
-                    onClick={() =>
-                      onSelect(card, selectedState, selectedLanguage)
-                    }
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="relative aspect-63/88 rounded-xl overflow-hidden bg-leather-light border border-white/8 hover:border-gold/40 transition-all group cursor-pointer shadow-md"
-                  >
-                    <div
-                      className="absolute inset-0 bg-cover bg-center"
-                      style={{
-                        backgroundImage: `url(${card.imageData || card.url})`,
-                      }}
-                    />
-                    {card.isCustom && (
-                      <div className="absolute top-1 left-1 px-1 py-0.5 bg-purple-500/80 rounded text-[6px] font-black uppercase text-white backdrop-blur-sm">
-                        C
-                      </div>
-                    )}
-                    <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/30 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-[9px] font-bold text-white truncate">
-                        {card.name}
-                      </p>
-                      <p className="text-[8px] text-zinc-400 font-mono">
-                        {card.serial}
-                      </p>
+                {displayCards.map((card) => {
+                  const cardState = getCardState(card.id);
+
+                  return (
+                    <div key={card.id}>
+                      <CardComponent
+                        card={card}
+                        slotState={cardState}
+                        onClick={() =>
+                          onSelect(card, selectedState, selectedLanguage)
+                        }
+                      />
                     </div>
-                  </motion.button>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 opacity-30">

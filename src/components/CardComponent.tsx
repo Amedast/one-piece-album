@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Card, SlotState } from "@/types";
 import { twMerge } from "tailwind-merge";
-import { Star, Bookmark } from "lucide-react";
+import { Star, Bookmark, Check } from "lucide-react";
 
 interface CardComponentProps {
   card: Card;
@@ -23,13 +23,6 @@ const rarityColors: Record<string, string> = {
   P: "text-emerald-400",
 };
 
-const rarityGlow: Record<string, string> = {
-  SR: "shadow-[0_0_14px_rgba(244,160,24,0.35)] ring-1 ring-gold/30",
-  SEC: "shadow-[0_0_18px_rgba(251,146,60,0.4)] ring-1 ring-orange-400/40",
-  "SP CARD":
-    "shadow-[0_0_14px_rgba(168,85,247,0.35)] ring-1 ring-purple-400/30",
-};
-
 export default function CardComponent({
   card,
   slotState = "EMPTY",
@@ -47,10 +40,7 @@ export default function CardComponent({
     <div className="relative group perspective-1000" onClick={onClick}>
       <motion.div
         className={twMerge(
-          "relative w-42 aspect-63/88 rounded-xl overflow-hidden cursor-pointer bg-leather-light",
-          isWishlist && "grayscale opacity-45",
-          isOwned && "shadow-md shadow-black/60",
-          isRare && isOwned && rarityGlow[card.rarity],
+          "relative w-full aspect-63/88 rounded-xl overflow-hidden cursor-pointer bg-leather-light",
           isEmpty && isAlbumView && "border-2 border-dashed border-white/8",
         )}
         whileHover={
@@ -79,16 +69,6 @@ export default function CardComponent({
               style={{ backgroundImage: `url(${imgSrc})` }}
             />
 
-            {/* Rare overlay */}
-            {isOwned && isRare && (
-              <div className="absolute inset-0 bg-linear-to-tr from-gold/8 via-transparent to-white/5 pointer-events-none mix-blend-overlay" />
-            )}
-
-            {/* Wishlist overlay */}
-            {isWishlist && (
-              <div className="absolute inset-0 bg-linear-to-b from-transparent to-black/20 pointer-events-none" />
-            )}
-
             {/* Custom badge */}
             {card.isCustom && (
               <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-purple-500/80 rounded text-[7px] font-black uppercase text-white backdrop-blur-sm">
@@ -110,7 +90,7 @@ export default function CardComponent({
                   </div>
                   <span
                     className={twMerge(
-                      "text-[9px] font-black italic shrink-0 ml-1",
+                      "text-[12px] font-black italic shrink-0 ml-1",
                       rarityColors[card.rarity] || "text-zinc-400",
                     )}
                   >
@@ -121,9 +101,20 @@ export default function CardComponent({
             )}
 
             {/* Wishlist bookmark */}
-            {isWishlist && (
-              <div className="absolute top-1.5 right-1.5 p-0.5 bg-black/50 rounded backdrop-blur-sm">
-                <Bookmark size={10} className="text-white/60 fill-white/60" />
+            {isWishlist && !isAlbumView && (
+              <div className="absolute top-1.5 right-1.5 p-0.5 bg-blue-500/70 rounded backdrop-blur-sm w-6 h-6 flex items-center justify-center">
+                <Bookmark
+                  size={16}
+                  className="text-blue-950 fill-blue-950"
+                  strokeWidth={2}
+                />
+              </div>
+            )}
+
+            {/* Owned checkmark for database view */}
+            {isOwned && !isAlbumView && (
+              <div className="absolute top-1.5 right-1.5 p-0.5 bg-gold/90 rounded backdrop-blur-sm border-2 border-gold">
+                <Check size={16} className="text-obsidian" strokeWidth={4} />
               </div>
             )}
           </>
