@@ -9,18 +9,28 @@ import FilterSystem from "@/components/FilterSystem";
 import CardDetailsModal from "@/components/CardDetailsModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Compass, Loader2 } from "lucide-react";
+import { useInView } from "react-intersection-observer";
+
+const FILTERS_STORAGE_KEY = "ohara_filters_cache";
 
 export default function Home() {
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedRarities, setSelectedRarities] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSets, setSelectedSets] = useState<string[]>([]);
   const [showAltArtsOnly, setShowAltArtsOnly] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [page, setPage] = useState(0);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+
+  const { ref, inView } = useInView({
+    threshold: 0.1,
+  });
 
   const { album } = useAlbum();
 
@@ -41,28 +51,59 @@ export default function Home() {
     [album],
   );
 
-  const loadCards = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const payload: GetCardsPayload = {
-        page,
-        name: searchQuery || undefined,
-        type: selectedTypes.length > 0 ? selectedTypes : undefined,
-        rarity: selectedRarities.length > 0 ? selectedRarities : undefined,
-        color: selectedColors.length > 0 ? selectedColors : undefined,
-        card_set: selectedSets.length > 0 ? selectedSets : undefined,
-        showReprints: true,
-        showAltArts: showAltArtsOnly ? "only" : "show",
-      };
-      const res = await fetchCards(payload);
-      setCards(res.data);
-    } catch (err) {
-      console.error("Failed to fetch cards:", err);
-    } finally {
-      setIsLoading(false);
-    }
+  const loadCards = useCallback(
+    async (isMore = false) => {
+      if (isMore) setIsFetchingMore(true);
+      else setIsLoading(true);
+
+      const currentPage = isMore ? page + 1 : 0;
+
+      try {
+        const payload: GetCardsPayload = {
+          page: currentPage,
+          name: searchQuery || undefined,
+          type: selectedTypes.length > 0 ? selectedTypes : undefined,
+          rarity: selectedRarities.length > 0 ? selectedRarities : undefined,
+          color: selectedColors.length > 0 ? selectedColors : undefined,
+          card_set: selectedSets.length > 0 ? selectedSets : undefined,
+          showReprints: false,
+          showAltArts: showAltArtsOnly ? "only" : "show",
+        };
+        const res = await fetchCards(payload);
+
+        if (isMore) {
+          setCards((prev) => [...prev, ...res.data]);
+          setPage(currentPage);
+        } else {
+          setCards(res.data);
+          setPage(0);
+        }
+
+        // Each page has 20 cards usually. If we get less than 20, there are no more cards.
+        // Also check if total results is reached if available
+        setHasMore(res.data.length >= 20);
+      } catch (err) {
+        console.error("Failed to fetch cards:", err);
+      } finally {
+        setIsLoading(false);
+        setIsFetchingMore(false);
+      }
+    },
+    [
+      page,
+      searchQuery,
+      selectedTypes,
+      selectedRarities,
+      selectedColors,
+      selectedSets,
+      showAltArtsOnly,
+    ],
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => loadCards(false), 450);
+    return () => clearTimeout(t);
   }, [
-    page,
     searchQuery,
     selectedTypes,
     selectedRarities,
@@ -72,9 +113,53 @@ export default function Home() {
   ]);
 
   useEffect(() => {
-    const t = setTimeout(() => loadCards(), 450);
-    return () => clearTimeout(t);
-  }, [loadCards]);
+    if (inView && hasMore && !isLoading && !isFetchingMore) {
+      loadCards(true);
+    }
+  }, [inView, hasMore, isLoading, isFetchingMore, loadCards]);
+
+  // Load filters from sessionStorage on mount
+  useEffect(() => {
+    const cached = sessionStorage.getItem(FILTERS_STORAGE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.searchQuery !== undefined) setSearchQuery(parsed.searchQuery);
+        if (parsed.selectedTypes) setSelectedTypes(parsed.selectedTypes);
+        if (parsed.selectedRarities) setSelectedRarities(parsed.selectedRarities);
+        if (parsed.selectedColors) setSelectedColors(parsed.selectedColors);
+        if (parsed.selectedSets) setSelectedSets(parsed.selectedSets);
+        if (parsed.showAltArtsOnly !== undefined)
+          setShowAltArtsOnly(parsed.showAltArtsOnly);
+      } catch (e) {
+        console.error("Error parsing cached filters", e);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save filters to sessionStorage whenever they change
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const filters = {
+      searchQuery,
+      selectedTypes,
+      selectedRarities,
+      selectedColors,
+      selectedSets,
+      showAltArtsOnly,
+    };
+    sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  }, [
+    searchQuery,
+    selectedTypes,
+    selectedRarities,
+    selectedColors,
+    selectedSets,
+    showAltArtsOnly,
+    isInitialized,
+  ]);
 
   const resetFilters = () => {
     setSearchQuery("");
@@ -84,6 +169,7 @@ export default function Home() {
     setSelectedSets([]);
     setShowAltArtsOnly(false);
     setPage(0);
+    sessionStorage.removeItem(FILTERS_STORAGE_KEY);
   };
 
   return (
@@ -137,7 +223,7 @@ export default function Home() {
         <div className="relative min-h-125">
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-5 md:gap-6">
-              {[...Array(12)].map((_, i) => (
+              {[...Array(32)].map((_, i) => (
                 <div
                   key={i}
                   className="aspect-63/88 rounded-xl bg-leather-light animate-pulse"
@@ -150,10 +236,10 @@ export default function Home() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-5 md:gap-6">
                 {cards.map((card, i) => (
                   <motion.div
-                    key={card.id}
+                    key={`${card.id}-${i}`}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.03, duration: 0.3 }}
+                    transition={{ delay: (i % 20) * 0.03, duration: 0.3 }}
                     onClick={() => setSelectedCard(card)}
                     className="cursor-pointer"
                   >
@@ -165,44 +251,19 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Pagination */}
-              <div className="mt-16 flex items-center justify-center gap-4">
-                <button
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                  className="cursor-pointer group flex items-center gap-2 px-5 py-3 bg-leather border border-white/10 rounded-2xl text-zinc-400 hover:text-white hover:border-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronLeft
-                    size={18}
-                    className="group-hover:-translate-x-0.5 transition-transform"
-                  />
-                  <span className="text-xs font-black uppercase tracking-wider hidden sm:inline">
-                    Anterior
-                  </span>
-                </button>
-
-                <div className="bg-leather border border-white/8 px-8 py-3 rounded-2xl text-center min-w-30">
-                  <div className="text-[9px] font-black uppercase text-zinc-600 tracking-widest mb-0.5">
-                    Página
+              {/* Infinite Scroll Trigger & Loader */}
+              <div ref={ref} className="mt-12 py-8 flex justify-center w-full">
+                {isFetchingMore && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-5 md:gap-6">
+                    {[...Array(32)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="aspect-63/88 rounded-xl bg-leather-light animate-pulse"
+                        style={{ animationDelay: `${i * 0.06}s` }}
+                      />
+                    ))}
                   </div>
-                  <div className="font-cinzel text-xl font-bold text-white">
-                    {page + 1}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={cards.length < 20}
-                  className="cursor-pointer group flex items-center gap-2 px-5 py-3 bg-leather border border-white/10 rounded-2xl text-zinc-400 hover:text-white hover:border-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
-                >
-                  <span className="text-xs font-black uppercase tracking-wider hidden sm:inline">
-                    Siguiente
-                  </span>
-                  <ChevronRight
-                    size={18}
-                    className="group-hover:translate-x-0.5 transition-transform"
-                  />
-                </button>
+                )}
               </div>
             </>
           ) : (

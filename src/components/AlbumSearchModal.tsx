@@ -17,9 +17,13 @@ import {
   RotateCcw,
   Check,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
+import { useInView } from "react-intersection-observer";
 import { twMerge } from "tailwind-merge";
 import CardComponent from "./CardComponent";
+
+const FILTERS_STORAGE_KEY = "ohara_filters_cache";
 
 interface AlbumSearchModalProps {
   isOpen: boolean;
@@ -70,16 +74,25 @@ export default function AlbumSearchModal({
   const [tab, setTab] = useState<TabType>("api");
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
   const [query, setQuery] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedRarities, setSelectedRarities] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSets, setSelectedSets] = useState<string[]>([]);
+  const [showAltArtsOnly, setShowAltArtsOnly] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [selectedState, setSelectedState] = useState<SlotState>(defaultState);
   const [selectedLanguage, setSelectedLanguage] = useState<"JP" | "EN">("EN");
   const [sets, setSets] = useState<SetData[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [setSearch, setSetSearch] = useState("");
+
+  const { ref, inView } = useInView({
+    threshold: 0.1,
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -93,32 +106,114 @@ export default function AlbumSearchModal({
       query.trim() === "" || c.name.toLowerCase().includes(query.toLowerCase()),
   );
 
-  const loadCards = useCallback(async () => {
-    if (tab !== "api") return;
-    setIsLoading(true);
-    try {
-      const res = await fetchCards({
-        page: 0,
-        name: query || undefined,
-        type: selectedTypes.length > 0 ? selectedTypes : undefined,
-        rarity: selectedRarities.length > 0 ? selectedRarities : undefined,
-        color: selectedColors.length > 0 ? selectedColors : undefined,
-        card_set: selectedSets.length > 0 ? selectedSets : undefined,
-        showReprints: true,
-      });
-      setCards(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+  const loadCards = useCallback(
+    async (isMore = false) => {
+      if (tab !== "api") return;
+      if (isMore) setIsFetchingMore(true);
+      else setIsLoading(true);
+
+      const currentPage = isMore ? page + 1 : 0;
+
+      try {
+        const res = await fetchCards({
+          page: currentPage,
+          name: query || undefined,
+          type: selectedTypes.length > 0 ? selectedTypes : undefined,
+          rarity: selectedRarities.length > 0 ? selectedRarities : undefined,
+          color: selectedColors.length > 0 ? selectedColors : undefined,
+          card_set: selectedSets.length > 0 ? selectedSets : undefined,
+          showReprints: false,
+          showAltArts: showAltArtsOnly ? "only" : "show",
+        });
+
+        if (isMore) {
+          setCards((prev) => [...prev, ...res.data]);
+          setPage(currentPage);
+        } else {
+          setCards(res.data);
+          setPage(0);
+        }
+
+        setHasMore(res.data.length >= 20);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+        setIsFetchingMore(false);
+      }
+    },
+    [
+      query,
+      selectedTypes,
+      selectedRarities,
+      selectedColors,
+      selectedSets,
+      showAltArtsOnly,
+      tab,
+      page,
+    ],
+  );
+
+  useEffect(() => {
+    if (inView && hasMore && !isLoading && !isFetchingMore && tab === "api") {
+      loadCards(true);
     }
-  }, [query, selectedTypes, selectedRarities, selectedColors, selectedSets, tab]);
+  }, [inView, hasMore, isLoading, isFetchingMore, loadCards, tab]);
 
   useEffect(() => {
     if (!isOpen) return;
-    const timer = setTimeout(loadCards, 400);
+    const timer = setTimeout(() => loadCards(false), 400);
     return () => clearTimeout(timer);
-  }, [isOpen, loadCards]);
+  }, [
+    isOpen,
+    selectedColors,
+    selectedSets,
+    showAltArtsOnly,
+    tab,
+  ]);
+
+  // Load filters from sessionStorage on mount
+  useEffect(() => {
+    const cached = sessionStorage.getItem(FILTERS_STORAGE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.searchQuery !== undefined) setQuery(parsed.searchQuery);
+        if (parsed.selectedTypes) setSelectedTypes(parsed.selectedTypes);
+        if (parsed.selectedRarities) setSelectedRarities(parsed.selectedRarities);
+        if (parsed.selectedColors) setSelectedColors(parsed.selectedColors);
+        if (parsed.selectedSets) setSelectedSets(parsed.selectedSets);
+        if (parsed.showAltArtsOnly !== undefined)
+          setShowAltArtsOnly(parsed.showAltArtsOnly);
+      } catch (e) {
+        console.error("Error parsing cached filters", e);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save filters to sessionStorage whenever they change
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const filters = {
+      searchQuery: query,
+      selectedTypes,
+      selectedRarities,
+      selectedColors,
+      selectedSets,
+      showAltArtsOnly,
+    };
+    sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  }, [
+    query,
+    selectedTypes,
+    selectedRarities,
+    selectedColors,
+    selectedSets,
+    showAltArtsOnly,
+    isInitialized,
+  ]);
 
   useEffect(() => {
     if (isOpen) setSelectedState(defaultState);
@@ -154,6 +249,7 @@ export default function AlbumSearchModal({
     setSelectedRarities([]);
     setSelectedColors([]);
     setSelectedSets([]);
+    setShowAltArtsOnly(false);
   };
 
   const filteredSets = sets.filter(
@@ -463,6 +559,24 @@ export default function AlbumSearchModal({
                           </div>
                         </FilterSection>
 
+                        {/* Alt arts */}
+                        <div className="pt-2">
+                          <button
+                            onClick={() => setShowAltArtsOnly(!showAltArtsOnly)}
+                            className={twMerge(
+                              "cursor-pointer w-full p-3 rounded-xl border flex items-center justify-between transition-all",
+                              showAltArtsOnly
+                                ? "bg-gold/10 border-gold/40 text-gold"
+                                : "bg-leather-light border-white/8 text-zinc-500 hover:border-white/15",
+                            )}
+                          >
+                            <span className="text-[10px] font-black uppercase tracking-wider">
+                              Solo Alt Arts
+                            </span>
+                            {showAltArtsOnly && <Check size={14} />}
+                          </button>
+                        </div>
+
                         <button
                           onClick={() => setShowFilters(false)}
                           className="cursor-pointer w-full py-2.5 bg-gold text-obsidian rounded-xl font-black uppercase text-xs tracking-widest hover:bg-gold-bright transition-colors font-cinzel"
@@ -489,23 +603,44 @@ export default function AlbumSearchModal({
                 ))}
               </div>
             ) : displayCards.length > 0 ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                {displayCards.map((card) => {
-                  const cardState = getCardState(card.id);
+              <>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                  {displayCards.map((card, i) => {
+                    const cardState = getCardState(card.id);
 
-                  return (
-                    <div key={card.id}>
-                      <CardComponent
-                        card={card}
-                        slotState={cardState}
-                        onClick={() =>
-                          onSelect(card, selectedState, selectedLanguage)
-                        }
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+                    return (
+                      <div key={`${card.id}-${i}`}>
+                        <CardComponent
+                          card={card}
+                          slotState={cardState}
+                          onClick={() =>
+                            onSelect(card, selectedState, selectedLanguage)
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Infinite Scroll Trigger & Loader */}
+                {tab === "api" && (
+                  <div ref={ref} className="mt-8 py-6 flex justify-center w-full">
+                    {isFetchingMore && (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 size={24} className="text-gold animate-spin" />
+                        <p className="text-[9px] font-black uppercase text-gold/50 tracking-widest">
+                          Cargando...
+                        </p>
+                      </div>
+                    )}
+                    {!hasMore && cards.length > 0 && (
+                      <div className="text-zinc-700 text-[9px] font-black uppercase tracking-widest opacity-40">
+                        Fin de resultados
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 opacity-30">
                 {tab === "custom" ? (

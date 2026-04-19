@@ -23,6 +23,28 @@ const rarityColors: Record<string, string> = {
   P: "text-emerald-400",
 };
 
+const rarityColorsBG: Record<string, string> = {
+  L: "bg-red-400/20",
+  C: "bg-zinc-500/20",
+  UC: "bg-zinc-400/20",
+  R: "bg-blue-400/20",
+  SR: "bg-gold/20",
+  SEC: "bg-orange-400/20",
+  "SP CARD": "bg-purple-400/20",
+  P: "bg-emerald-400/20",
+};
+
+const rarityColorsBorder: Record<string, string> = {
+  L: "border-red-400",
+  C: "border-zinc-500",
+  UC: "border-zinc-400",
+  R: "border-blue-400",
+  SR: "border-gold",
+  SEC: "border-orange-400",
+  "SP CARD": "border-purple-400",
+  P: "border-emerald-400",
+};
+
 export default function CardComponent({
   card,
   slotState = "EMPTY",
@@ -40,20 +62,9 @@ export default function CardComponent({
     <div className="relative group perspective-1000" onClick={onClick}>
       <motion.div
         className={twMerge(
-          "relative w-full aspect-63/88 rounded-xl overflow-hidden cursor-pointer bg-leather-light",
+          "relative w-full aspect-63/88 rounded-md overflow-hidden cursor-pointer bg-leather-light",
           isEmpty && isAlbumView && "border-2 border-dashed border-white/8",
         )}
-        whileHover={
-          !isEmpty
-            ? {
-                scale: 1.05,
-                rotateY: 6,
-                rotateX: 2,
-                transition: { type: "spring", stiffness: 380, damping: 22 },
-              }
-            : {}
-        }
-        style={{ transformStyle: "preserve-3d" }}
       >
         {isEmpty && isAlbumView ? (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -78,24 +89,26 @@ export default function CardComponent({
 
             {/* Hover info (database view) */}
             {!isAlbumView && (
-              <div className="absolute inset-x-0 bottom-0 py-3 px-3 bg-linear-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute inset-x-0 bottom-0 py-3 px-3 bg-linear-to-t h-20 from-black flex flex-col justify-end to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div className="min-w-0">
+                  <h3 className="text-xs font-bold text-white truncate">
+                    {card.name}
+                  </h3>
+                </div>
                 <div className="flex items-end justify-between">
-                  <div className="min-w-0">
-                    <p className="text-[9px] text-zinc-500 font-mono">
-                      {card.serial}
-                    </p>
-                    <h3 className="text-xs font-bold text-white truncate">
-                      {card.name}
-                    </h3>
-                  </div>
-                  <span
+                  <h3 className="text-xs font-bold text-white truncate">
+                    {card.serial}
+                  </h3>
+                  <div
                     className={twMerge(
-                      "text-[12px] font-black italic shrink-0 ml-1",
+                      "text-[12px] shrink-0 px-1.5 rounded-md border",
                       rarityColors[card.rarity] || "text-zinc-400",
+                      rarityColorsBG[card.rarity] || "bg-zinc-400/50",
+                      rarityColorsBorder[card.rarity] || "border-zinc-400",
                     )}
                   >
                     {card.rarity}
-                  </span>
+                  </div>
                 </div>
               </div>
             )}
