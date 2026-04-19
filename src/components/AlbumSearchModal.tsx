@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { fetchCards } from "@/lib/api";
-import { Card, SlotState } from "@/types";
+import { Card, SlotState, SetData } from "@/types";
 import { useAlbum } from "@/context/AlbumContext";
+import { loadSets } from "@/lib/sets";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -12,6 +13,10 @@ import {
   Bookmark,
   Wand2,
   Image as ImageIcon,
+  SlidersHorizontal,
+  RotateCcw,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import CardComponent from "./CardComponent";
@@ -23,8 +28,17 @@ interface AlbumSearchModalProps {
   defaultState?: SlotState;
 }
 
-const RARITIES = ["L", "SR", "SEC", "SP CARD", "R", "UC", "C"];
+const ALL_RARITIES = ["L", "C", "UC", "R", "SR", "SEC", "P", "SP CARD"];
 const ALL_TYPES = ["LEADER", "CHARACTER", "EVENT", "STAGE"];
+const ALL_COLORS = [
+  "Red",
+  "Blue",
+  "Green",
+  "Yellow",
+  "Purple",
+  "Black",
+  "Multi-Color",
+];
 
 type TabType = "api" | "custom";
 
@@ -57,9 +71,21 @@ export default function AlbumSearchModal({
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedRarities, setSelectedRarities] = useState<string[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSets, setSelectedSets] = useState<string[]>([]);
   const [selectedState, setSelectedState] = useState<SlotState>(defaultState);
   const [selectedLanguage, setSelectedLanguage] = useState<"JP" | "EN">("EN");
+  const [sets, setSets] = useState<SetData[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [setSearch, setSetSearch] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSets().then(setSets);
+    }
+  }, [isOpen]);
 
   // Filtered custom cards
   const filteredCustom = customCards.filter(
@@ -74,7 +100,10 @@ export default function AlbumSearchModal({
       const res = await fetchCards({
         page: 0,
         name: query || undefined,
+        type: selectedTypes.length > 0 ? selectedTypes : undefined,
         rarity: selectedRarities.length > 0 ? selectedRarities : undefined,
+        color: selectedColors.length > 0 ? selectedColors : undefined,
+        card_set: selectedSets.length > 0 ? selectedSets : undefined,
         showReprints: true,
       });
       setCards(res.data);
@@ -83,7 +112,7 @@ export default function AlbumSearchModal({
     } finally {
       setIsLoading(false);
     }
-  }, [query, selectedRarities, tab]);
+  }, [query, selectedTypes, selectedRarities, selectedColors, selectedSets, tab]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -95,11 +124,43 @@ export default function AlbumSearchModal({
     if (isOpen) setSelectedState(defaultState);
   }, [isOpen, defaultState]);
 
+  const toggleType = (t: string) => {
+    setSelectedTypes((prev) =>
+      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
+    );
+  };
+
   const toggleRarity = (r: string) => {
     setSelectedRarities((prev) =>
       prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r],
     );
   };
+
+  const toggleColor = (c: string) => {
+    setSelectedColors((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+  };
+
+  const toggleSet = (id: string) => {
+    setSelectedSets((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const onReset = () => {
+    setQuery("");
+    setSelectedTypes([]);
+    setSelectedRarities([]);
+    setSelectedColors([]);
+    setSelectedSets([]);
+  };
+
+  const filteredSets = sets.filter(
+    (s) =>
+      s.raw_title.toLowerCase().includes(setSearch.toLowerCase()) ||
+      s.title_parts.label?.toLowerCase().includes(setSearch.toLowerCase()),
+  );
 
   const displayCards = tab === "custom" ? filteredCustom : cards;
 
@@ -121,7 +182,7 @@ export default function AlbumSearchModal({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.93, opacity: 0, y: 20 }}
           transition={{ type: "spring", damping: 26, stiffness: 320 }}
-          className="relative w-full max-w-4xl bg-leather border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-black flex flex-col h-[85vh]"
+          className="relative w-full max-w-4xl bg-leather border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-black flex flex-col h-[90vh]"
         >
           {/* Header */}
           <div className="p-6 border-b border-white/8 space-y-4 shrink-0">
@@ -190,8 +251,8 @@ export default function AlbumSearchModal({
                   className={twMerge(
                     "cursor-pointer flex items-center gap-1.5 px-4 py-1.5 rounded-xl border text-xs font-black uppercase tracking-wider transition-all",
                     selectedLanguage === "EN"
-                      ? "bg-purple-500/20 text-purple-400 border-purple-500/50"
-                      : "bg-leather-light border-white/10 text-zinc-400 hover:border-purple-500/30",
+                      ? "bg-blue-500/20 text-blue-400 border-blue-500/50"
+                      : "bg-leather-light border-white/10 text-zinc-400 hover:border-blue-500/30",
                   )}
                 >
                   EN
@@ -226,49 +287,192 @@ export default function AlbumSearchModal({
               />
             </div>
 
-            {/* Search + rarity filters */}
-            <div className="space-y-3">
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
-                />
-                <input
-                  type="text"
-                  placeholder={
-                    tab === "api" ? "Buscar carta..." : "Buscar en custom..."
-                  }
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  autoFocus
-                  className="w-full bg-obsidian border border-white/10 focus:border-gold/40 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
-                />
-                {query && (
+            {/* Search + filters */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 group">
+                  <Search
+                    size={16}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-zinc-300 transition-colors"
+                  />
+                  <input
+                    type="text"
+                    placeholder={
+                      tab === "api" ? "Buscar carta..." : "Buscar en custom..."
+                    }
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    autoFocus
+                    className="w-full bg-obsidian border border-white/10 focus:border-gold/40 rounded-2xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
+                  />
+                  {query && (
+                    <button
+                      onClick={() => setQuery("")}
+                      className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {tab === "api" && (
                   <button
-                    onClick={() => setQuery("")}
-                    className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={twMerge(
+                      "cursor-pointer flex items-center gap-2.5 px-5 py-2.5 rounded-2xl border font-bold text-sm transition-all",
+                      showFilters ||
+                        selectedTypes.length +
+                          selectedRarities.length +
+                          selectedColors.length +
+                          selectedSets.length >
+                          0
+                        ? "bg-gold text-obsidian border-gold shadow-lg shadow-gold/10"
+                        : "bg-leather-light border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200",
+                    )}
                   >
-                    <X size={14} />
+                    <SlidersHorizontal size={14} />
+                    <span className="hidden sm:inline font-black uppercase text-[10px] tracking-wider">
+                      Filtros
+                    </span>
+                    {selectedTypes.length +
+                      selectedRarities.length +
+                      selectedColors.length +
+                      selectedSets.length >
+                      0 && (
+                      <span className="flex items-center justify-center w-4 h-4 bg-obsidian text-gold rounded-full text-[8px] font-black">
+                        {selectedTypes.length +
+                          selectedRarities.length +
+                          selectedColors.length +
+                          selectedSets.length}
+                      </span>
+                    )}
+                    <ChevronDown
+                      size={12}
+                      className={twMerge(
+                        "transition-transform hidden sm:inline",
+                        showFilters && "rotate-180",
+                      )}
+                    />
                   </button>
                 )}
               </div>
+
               {tab === "api" && (
-                <div className="flex gap-2 flex-wrap">
-                  {RARITIES.map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => toggleRarity(r)}
-                      className={twMerge(
-                        "cursor-pointer px-3 py-1 rounded-lg border text-[10px] font-black uppercase transition-all",
-                        selectedRarities.includes(r)
-                          ? "bg-gold text-obsidian border-gold"
-                          : "bg-leather-light border-white/10 text-zinc-500 hover:border-white/20",
-                      )}
+                <AnimatePresence>
+                  {showFilters && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden bg-obsidian/30 rounded-2xl border border-white/5"
                     >
-                      {r}
-                    </button>
-                  ))}
-                </div>
+                      <div className="p-5 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-cinzel text-xs font-bold text-white uppercase tracking-widest">
+                            Refinar Búsqueda
+                          </h4>
+                          <button
+                            onClick={onReset}
+                            className="cursor-pointer flex items-center gap-1 text-[10px] font-black uppercase text-zinc-500 hover:text-gold transition-colors"
+                          >
+                            <RotateCcw size={12} /> Limpiar
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <FilterSection label="Tipo">
+                            {ALL_TYPES.map((t) => (
+                              <FilterPill
+                                key={t}
+                                label={t}
+                                active={selectedTypes.includes(t)}
+                                onClick={() => toggleType(t)}
+                              />
+                            ))}
+                          </FilterSection>
+
+                          <FilterSection label="Rareza">
+                            {ALL_RARITIES.map((r) => (
+                              <FilterPill
+                                key={r}
+                                label={r}
+                                active={selectedRarities.includes(r)}
+                                onClick={() => toggleRarity(r)}
+                              />
+                            ))}
+                          </FilterSection>
+                        </div>
+
+                        <FilterSection label="Color">
+                          {ALL_COLORS.map((c) => (
+                            <FilterPill
+                              key={c}
+                              label={c}
+                              active={selectedColors.includes(c)}
+                              onClick={() => toggleColor(c)}
+                            />
+                          ))}
+                        </FilterSection>
+
+                        <FilterSection label="Sets / Colecciones">
+                          <div className="w-full space-y-3">
+                            <div className="relative">
+                              <Search
+                                size={12}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Buscar set..."
+                                value={setSearch}
+                                onChange={(e) => setSetSearch(e.target.value)}
+                                className="w-full bg-obsidian/50 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder-zinc-700 outline-none focus:border-gold/30 transition-colors font-crimson"
+                              />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar w-full">
+                              {filteredSets.map((s) => (
+                                <button
+                                  key={s.id}
+                                  onClick={() => toggleSet(s.id)}
+                                  className={twMerge(
+                                    "cursor-pointer flex items-center gap-2 p-2 rounded-xl border text-[11px] text-left transition-all",
+                                    selectedSets.includes(s.id)
+                                      ? "bg-gold/10 border-gold/30 text-gold shadow-sm shadow-gold/5"
+                                      : "bg-leather-light/50 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300",
+                                  )}
+                                >
+                                  <div
+                                    className={twMerge(
+                                      "shrink-0 w-11 py-1 rounded bg-obsidian text-center font-black text-[10px]",
+                                      selectedSets.includes(s.id)
+                                        ? "text-gold"
+                                        : "text-zinc-600",
+                                    )}
+                                  >
+                                    {s.title_parts.label || "???"}
+                                  </div>
+                                  <span className="truncate font-bold tracking-tight">
+                                    {s.title_parts.title}
+                                  </span>
+                                  {selectedSets.includes(s.id) && (
+                                    <Check size={10} className="ml-auto" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </FilterSection>
+
+                        <button
+                          onClick={() => setShowFilters(false)}
+                          className="cursor-pointer w-full py-2.5 bg-gold text-obsidian rounded-xl font-black uppercase text-xs tracking-widest hover:bg-gold-bright transition-colors font-cinzel"
+                        >
+                          Aplicar Filtros
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               )}
             </div>
           </div>
@@ -322,7 +526,6 @@ export default function AlbumSearchModal({
     </AnimatePresence>
   );
 }
-
 function TabBtn({
   active,
   onClick,
@@ -345,6 +548,49 @@ function TabBtn({
       )}
     >
       {icon}
+      {label}
+    </button>
+  );
+}
+
+function FilterSection({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <h4 className="text-[9px] font-black uppercase text-zinc-600 tracking-widest mb-3">
+        {label}
+      </h4>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function FilterPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={twMerge(
+        "cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-all",
+        active
+          ? "bg-leather-light border-gold/50 text-gold"
+          : "bg-leather-light border-white/8 text-zinc-500 hover:border-white/15 hover:text-zinc-300",
+      )}
+    >
       {label}
     </button>
   );

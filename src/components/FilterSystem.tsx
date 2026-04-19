@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { twMerge } from "tailwind-merge";
+import { SetData } from "@/types";
+import { loadSets } from "@/lib/sets";
 
 interface FilterSystemProps {
   searchQuery: string;
@@ -21,6 +23,8 @@ interface FilterSystemProps {
   setSelectedRarities: (r: string[]) => void;
   selectedColors: string[];
   setSelectedColors: (c: string[]) => void;
+  selectedSets: string[];
+  setSelectedSets: (s: string[]) => void;
   showAltArtsOnly: boolean;
   setShowAltArtsOnly: (b: boolean) => void;
   onReset?: () => void;
@@ -47,12 +51,21 @@ export default function FilterSystem({
   setSelectedRarities,
   selectedColors,
   setSelectedColors,
+  selectedSets,
+  setSelectedSets,
   showAltArtsOnly,
   setShowAltArtsOnly,
   onReset,
 }: FilterSystemProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [sets, setSets] = useState<SetData[]>([]);
+  const [setSearch, setSetSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Load sets on mount
+    loadSets().then(setSets);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -94,10 +107,24 @@ export default function FilterSystem({
         : [...selectedColors, c],
     );
 
+  const toggleSet = (id: string) =>
+    setSelectedSets(
+      selectedSets.includes(id)
+        ? selectedSets.filter((x) => x !== id)
+        : [...selectedSets, id],
+    );
+
+  const filteredSets = sets.filter(
+    (s) =>
+      s.raw_title.toLowerCase().includes(setSearch.toLowerCase()) ||
+      s.title_parts.label?.toLowerCase().includes(setSearch.toLowerCase()),
+  );
+
   const activeCount =
     selectedTypes.length +
     selectedRarities.length +
     selectedColors.length +
+    selectedSets.length +
     (showAltArtsOnly ? 1 : 0);
 
   return (
@@ -110,7 +137,7 @@ export default function FilterSystem({
         />
         <input
           type="text"
-          placeholder="Buscar cartas piratas..."
+          placeholder="Buscar cartas..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-leather border border-white/10 focus:border-gold/40 rounded-2xl py-3 pl-11 pr-10 text-sm text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
@@ -169,12 +196,12 @@ export default function FilterSystem({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.96 }}
                 transition={{ duration: 0.2 }}
-                className="absolute right-0 mt-3 w-[calc(100vw-2rem)] md:w-[520px] bg-leather border border-white/10 rounded-3xl shadow-2xl shadow-black/60 z-50 p-7 overflow-hidden"
+                className="absolute right-0 mt-3 w-[calc(100vw-2rem)] md:w-[600px] bg-leather border border-white/10 rounded-3xl shadow-2xl shadow-black/60 z-50 p-7 overflow-hidden flex flex-col max-h-[85vh]"
               >
                 {/* Filter header */}
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-cinzel text-lg font-bold text-white">
-                    Refinar Búsqueda
+                    Filtros
                   </h3>
                   <button
                     onClick={() => {
@@ -226,6 +253,62 @@ export default function FilterSystem({
                   </div>
                 </FilterSection>
 
+                {/* Sets Section */}
+                <FilterSection
+                  label="Sets / Colecciones"
+                  className="mt-6 flex-1 flex flex-col min-h-0"
+                >
+                  <div className="relative mb-3 shrink-0">
+                    <Search
+                      size={12}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Buscar set..."
+                      value={setSearch}
+                      onChange={(e) => setSetSearch(e.target.value)}
+                      className="w-full bg-obsidian/50 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder-zinc-700 outline-none focus:border-gold/30 transition-colors font-crimson"
+                    />
+                  </div>
+                  <div className="overflow-y-auto pr-2 custom-scrollbar grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-50 w-full">
+                    {filteredSets.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => toggleSet(s.id)}
+                        className={twMerge(
+                          "cursor-pointer flex items-center gap-2 p-2 rounded-xl border text-[12px] text-left transition-all",
+                          selectedSets.includes(s.id)
+                            ? "bg-gold/10 border-gold/30 text-gold"
+                            : "bg-leather-light/50 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300",
+                        )}
+                      >
+                        <div
+                          className={twMerge(
+                            "shrink-0 w-12 py-1 rounded bg-obsidian text-center font-black",
+                            selectedSets.includes(s.id)
+                              ? "text-gold"
+                              : "text-zinc-600",
+                          )}
+                        >
+                          {s.title_parts.label || "???"}
+                        </div>
+                        <span className="truncate font-bold tracking-tight leading-tight">
+                          {s.title_parts.title || s.raw_title}
+                        </span>
+                        {selectedSets.includes(s.id) && (
+                          <Check size={10} className="ml-auto shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                    {filteredSets.length === 0 && (
+                      <div className="col-span-full py-4 text-center text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+                        No se encontraron sets
+                      </div>
+                    )}
+                  </div>
+                </FilterSection>
+
                 {/* Alt arts */}
                 <div className="mt-6 pt-5 border-t border-white/8">
                   <button
@@ -240,9 +323,6 @@ export default function FilterSystem({
                     <div className="text-left">
                       <div className="text-xs font-black uppercase italic tracking-wider">
                         Solo Alt Arts
-                      </div>
-                      <div className="text-[10px] opacity-60 font-crimson">
-                        Variaciones artísticas exclusivas
                       </div>
                     </div>
                     {showAltArtsOnly && <Check size={18} />}
@@ -302,7 +382,6 @@ function FilterPill({
           : "bg-leather-light border-white/8 text-zinc-500 hover:border-white/15 hover:text-zinc-300",
       )}
     >
-      {active && <Check size={10} className="text-gold" />}
       {label}
     </button>
   );

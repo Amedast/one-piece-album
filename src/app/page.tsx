@@ -17,6 +17,7 @@ export default function Home() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedRarities, setSelectedRarities] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSets, setSelectedSets] = useState<string[]>([]);
   const [showAltArtsOnly, setShowAltArtsOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -49,6 +50,7 @@ export default function Home() {
         type: selectedTypes.length > 0 ? selectedTypes : undefined,
         rarity: selectedRarities.length > 0 ? selectedRarities : undefined,
         color: selectedColors.length > 0 ? selectedColors : undefined,
+        card_set: selectedSets.length > 0 ? selectedSets : undefined,
         showReprints: true,
         showAltArts: showAltArtsOnly ? "only" : "show",
       };
@@ -65,6 +67,7 @@ export default function Home() {
     selectedTypes,
     selectedRarities,
     selectedColors,
+    selectedSets,
     showAltArtsOnly,
   ]);
 
@@ -78,6 +81,7 @@ export default function Home() {
     setSelectedTypes([]);
     setSelectedRarities([]);
     setSelectedColors([]);
+    setSelectedSets([]);
     setShowAltArtsOnly(false);
     setPage(0);
   };
@@ -115,6 +119,11 @@ export default function Home() {
               setSelectedColors(c);
               setPage(0);
             }}
+            selectedSets={selectedSets}
+            setSelectedSets={(s) => {
+              setSelectedSets(s);
+              setPage(0);
+            }}
             showAltArtsOnly={showAltArtsOnly}
             setShowAltArtsOnly={(b) => {
               setShowAltArtsOnly(b);
@@ -127,7 +136,7 @@ export default function Home() {
         {/* Card Grid */}
         <div className="relative min-h-125">
           {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 md:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-5 md:gap-6">
               {[...Array(12)].map((_, i) => (
                 <div
                   key={i}

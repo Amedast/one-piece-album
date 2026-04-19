@@ -545,7 +545,7 @@ export default function CardDetailsModal({
                         onClick={() => setAddLanguage("JP")}
                         icon={null}
                         label="JP"
-                        activeClass="cursor-pointer bg-red-500/20 text-red-400 border-red-500/50"
+                        activeClass="cursor-pointer bg-purple-500/20 text-purple-400 border-purple-500/50"
                       />
                     </div>
 

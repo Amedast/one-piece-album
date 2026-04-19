@@ -27,6 +27,16 @@ export interface GetCardsResponse {
   count: number;
 }
 
+export interface SetData {
+  id: string;
+  raw_title: string;
+  title_parts: {
+    prefix: string | null;
+    title: string;
+    label: string | null;
+  };
+}
+
 export interface GetCardsPayload {
   page: number;
   name?: string;
@@ -34,6 +44,7 @@ export interface GetCardsPayload {
   type?: string[];
   rarity?: string[];
   color?: string[];
+  card_set?: string[];
   showAltArts?: 'only' | 'hide' | 'show';
 }
 
