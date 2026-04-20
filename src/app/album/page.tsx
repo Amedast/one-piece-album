@@ -235,6 +235,8 @@ export default function AlbumPage() {
             <motion.div
               drag={!isReorganizeMode && isTouchDevice ? "x" : false}
               dragConstraints={{ left: 0, right: 0 }}
+              dragMomentum={false}
+              dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
               onDragEnd={(_, info) => {
                 const threshold = 50;
                 if (info.offset.x > threshold) {
@@ -243,7 +245,7 @@ export default function AlbumPage() {
                   handleNext();
                 }
               }}
-              className="flex flex-col lg:flex-row gap-0"
+              className="flex flex-col lg:flex-row gap-0 will-change-transform"
             >
               {/* Left Page — null on the very first spread (cover) */}
               {!isSinglePageView &&

@@ -203,6 +203,8 @@ export default function PublicAlbumPage({
           <motion.div
             drag={isTouchDevice ? "x" : false}
             dragConstraints={{ left: 0, right: 0 }}
+            dragMomentum={false}
+            dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
             onDragEnd={(_, info) => {
               const threshold = 50;
               if (info.offset.x > threshold) {
@@ -211,7 +213,7 @@ export default function PublicAlbumPage({
                 handleNext();
               }
             }}
-            className="flex flex-col lg:flex-row gap-0"
+            className="flex flex-col lg:flex-row gap-0 will-change-transform"
           >
             {/* Left page */}
             {leftPage ? (
