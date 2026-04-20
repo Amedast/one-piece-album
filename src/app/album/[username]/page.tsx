@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { BookOpen, Lock, User, ChevronLeft, ChevronRight } from "lucide-react";
 import AlbumSlotCard from "@/components/album/AlbumSlotCard";
 import type { Album, AlbumPage, Card, AlbumSlot } from "@/types";
@@ -25,6 +26,12 @@ export default function PublicAlbumPage({
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
+  }, []);
   const [selectedCard, setSelectedCard] = useState<{
     card: Card;
     language?: "JP" | "EN";
@@ -66,8 +73,15 @@ export default function PublicAlbumPage({
         setWishlistCtx({ pageId, slot });
       }
     };
-    window.addEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
-    return () => window.removeEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
+    window.addEventListener(
+      "open-wishlist-urls",
+      handleOpenWishlist as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "open-wishlist-urls",
+        handleOpenWishlist as EventListener,
+      );
   }, []);
 
   if (isLoading) {
@@ -185,14 +199,28 @@ export default function PublicAlbumPage({
         </div>
 
         {/* Binder spread — read only */}
-        <div className="relative bg-spine rounded-[2.5rem] border border-white/6 shadow-2xl overflow-hidden">
-          <div className="flex flex-col lg:flex-row gap-0">
+        <div className="relative bg-[#0D1018] rounded-[2.5rem] border border-white/6 shadow-2xl overflow-hidden">
+          <motion.div
+            drag={isTouchDevice ? "x" : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            onDragEnd={(_, info) => {
+              const threshold = 50;
+              if (info.offset.x > threshold) {
+                handlePrev();
+              } else if (info.offset.x < -threshold) {
+                handleNext();
+              }
+            }}
+            className="flex flex-col lg:flex-row gap-0"
+          >
             {/* Left page */}
             {leftPage ? (
               <ReadOnlyPage
                 page={leftPage}
                 pageNumber={currentPageIndex}
-                onCardClick={(card, language, wishlistUrls) => setSelectedCard({ card, language, wishlistUrls })}
+                onCardClick={(card, language, wishlistUrls) =>
+                  setSelectedCard({ card, language, wishlistUrls })
+                }
                 onOpenWishlistUrls={(pageId, slot) =>
                   setWishlistCtx({ pageId, slot })
                 }
@@ -213,7 +241,9 @@ export default function PublicAlbumPage({
               <ReadOnlyPage
                 page={rightPage}
                 pageNumber={currentPageIndex + 1}
-                onCardClick={(card, language, wishlistUrls) => setSelectedCard({ card, language, wishlistUrls })}
+                onCardClick={(card, language, wishlistUrls) =>
+                  setSelectedCard({ card, language, wishlistUrls })
+                }
                 onOpenWishlistUrls={(pageId, slot) =>
                   setWishlistCtx({ pageId, slot })
                 }
@@ -225,7 +255,7 @@ export default function PublicAlbumPage({
                 </p>
               </div>
             )}
-          </div>
+          </motion.div>
         </div>
       </div>
 
@@ -261,7 +291,11 @@ function ReadOnlyPage({
 }: {
   page: AlbumPage;
   pageNumber: number;
-  onCardClick: (card: Card, language?: "JP" | "EN", wishlistUrls?: any[]) => void;
+  onCardClick: (
+    card: Card,
+    language?: "JP" | "EN",
+    wishlistUrls?: any[],
+  ) => void;
   onOpenWishlistUrls: (pageId: string, slot: AlbumSlot) => void;
 }) {
   return (
@@ -291,7 +325,9 @@ function ReadOnlyPage({
             onOpenSearch={() => {}}
             onClearSlot={() => {}}
             onOpenWishlistUrls={() => onOpenWishlistUrls(page.pageId, slot)}
-            onOpenCardDetails={(card) => onCardClick(card, slot.language, slot.wishlistUrls)}
+            onOpenCardDetails={(card) =>
+              onCardClick(card, slot.language, slot.wishlistUrls)
+            }
             onDragStart={() => {}}
             onDragOver={() => {}}
             onDrop={() => {}}

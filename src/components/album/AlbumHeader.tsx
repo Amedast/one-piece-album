@@ -220,7 +220,7 @@ export default function AlbumHeader({
           </span>
         </button>
 
-        <div>
+        <div className="md:block hidden">
           <div className="text-sm font-black text-white font-cinzel text-center mb-1">
             {currentSpread} / {displaySpreads}
           </div>

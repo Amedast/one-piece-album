@@ -76,54 +76,73 @@ export default function AlbumPage() {
   const [wishlistCtx, setWishlistCtx] = useState<WishlistContext | null>(null);
   const [isCustomCardOpen, setIsCustomCardOpen] = useState(false);
   const [isPageManagerOpen, setIsPageManagerOpen] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
+  }, []);
   const [detailCtx, setDetailCtx] = useState<DetailContext | null>(null);
 
   useEffect(() => {
     const handleOpenWishlist = (e: CustomEvent) => {
       const { pageId, slotId, slot: passedSlot } = e.detail;
-      const targetSlot = passedSlot || album.pages.find((p) => p.pageId === pageId)?.slots.find((s) => s.slotId === slotId);
+      const targetSlot =
+        passedSlot ||
+        album.pages
+          .find((p) => p.pageId === pageId)
+          ?.slots.find((s) => s.slotId === slotId);
       if (pageId && targetSlot) {
         setWishlistCtx({ pageId, slot: targetSlot });
       }
     };
-    window.addEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
-    return () => window.removeEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
+    window.addEventListener(
+      "open-wishlist-urls",
+      handleOpenWishlist as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "open-wishlist-urls",
+        handleOpenWishlist as EventListener,
+      );
   }, [album]);
 
   /* ---- Pages ---- */
   // In Double Page View: currentPageIndex is the even index (0,2,4) representing the left page
   // Spread k: left = pages[currentPageIndex - 1], right = pages[currentPageIndex]
   // In Single Page View: currentPageIndex is the exact page shown
-  const leftPage = isSinglePageView 
+  const leftPage = isSinglePageView
     ? null
-    : album.pages[currentPageIndex - 1] ?? null; 
-  const rightPage = isSinglePageView 
-    ? album.pages[currentPageIndex - 1] ?? null // if single, current page is pages[currentPageIndex - 1] (0 is cover)
-    : album.pages[currentPageIndex] ?? null; 
+    : (album.pages[currentPageIndex - 1] ?? null);
+  const rightPage = isSinglePageView
+    ? (album.pages[currentPageIndex - 1] ?? null) // if single, current page is pages[currentPageIndex - 1] (0 is cover)
+    : (album.pages[currentPageIndex] ?? null);
   const totalPages = album.pages.length;
 
-  // Double View: totalPages + 1  (empty cover on each side). 
+  // Double View: totalPages + 1  (empty cover on each side).
   // Single View: totalPages + 2 (empty cover on both sides - cover is 0, back is totalPages+1)
   const totalSpreads = isSinglePageView ? totalPages + 2 : totalPages + 1;
 
   const handlePrev = () => {
     setCurrentPageIndex((i) => Math.max(0, i - (isSinglePageView ? 1 : 2)));
   };
-  
+
   const handleNext = () => {
     const step = isSinglePageView ? 1 : 2;
     if (currentPageIndex + step < totalSpreads) {
       setCurrentPageIndex((i) => i + step);
     }
   };
-  
+
   const handleNavigateToPage = (index: number) => {
     // index is the 0-based page index
     if (isSinglePageView) {
       setCurrentPageIndex(index + 1); // 1-based since 0 is cover
     } else {
       const spreadIndex = index + 1;
-      setCurrentPageIndex(spreadIndex % 2 === 0 ? spreadIndex : spreadIndex - 1);
+      setCurrentPageIndex(
+        spreadIndex % 2 === 0 ? spreadIndex : spreadIndex - 1,
+      );
     }
   };
 
@@ -209,15 +228,26 @@ export default function AlbumPage() {
           onOpenPageManager={() => setIsPageManagerOpen(true)}
         />
 
-        {/* Binder spread */}
         <div className="relative">
           {/* Outer binder frame */}
           <div className="relative bg-[#0D1018] rounded-[2.5rem] border border-white/6 shadow-2xl overflow-hidden">
-            {/* The spread pages */}
-            <div className="flex flex-col lg:flex-row gap-0">
+            {/* The spread pages - with swipe support */}
+            <motion.div
+              drag={!isReorganizeMode && isTouchDevice ? "x" : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              onDragEnd={(_, info) => {
+                const threshold = 50;
+                if (info.offset.x > threshold) {
+                  handlePrev();
+                } else if (info.offset.x < -threshold) {
+                  handleNext();
+                }
+              }}
+              className="flex flex-col lg:flex-row gap-0"
+            >
               {/* Left Page — null on the very first spread (cover) */}
-              {!isSinglePageView && (
-                leftPage ? (
+              {!isSinglePageView &&
+                (leftPage ? (
                   <AlbumPagePanel
                     page={leftPage}
                     pageNumber={currentPageIndex} // real page number = spreadIndex - 1 = currentPageIndex
@@ -232,22 +262,22 @@ export default function AlbumPage() {
                       );
                       if (slot) setWishlistCtx({ pageId, slot });
                     }}
-                      onOpenCardDetails={(
+                    onOpenCardDetails={(
+                      card,
+                      pageId,
+                      slotId,
+                      currentState,
+                      currentLanguage,
+                      wishlistUrls,
+                    ) =>
+                      setDetailCtx({
                         card,
                         pageId,
                         slotId,
                         currentState,
                         currentLanguage,
                         wishlistUrls,
-                      ) =>
-                        setDetailCtx({
-                          card,
-                          pageId,
-                          slotId,
-                          currentState,
-                          currentLanguage,
-                          wishlistUrls,
-                        })
+                      })
                     }
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
@@ -257,8 +287,7 @@ export default function AlbumPage() {
                   />
                 ) : (
                   <CoverPlaceholder side="left" />
-                )
-              )}
+                ))}
 
               {/* Spine */}
               {!isSinglePageView && (
@@ -273,7 +302,9 @@ export default function AlbumPage() {
               {rightPage ? (
                 <AlbumPagePanel
                   page={rightPage}
-                  pageNumber={isSinglePageView ? currentPageIndex : currentPageIndex + 1} // real page number = spreadIndex
+                  pageNumber={
+                    isSinglePageView ? currentPageIndex : currentPageIndex + 1
+                  } // real page number = spreadIndex
                   isReorganizeMode={isReorganizeMode}
                   dragSource={dragSource}
                   dragTarget={dragTarget}
@@ -313,7 +344,7 @@ export default function AlbumPage() {
               ) : (
                 <EmptyPagePlaceholder onAddPage={() => addPage()} />
               )}
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>
