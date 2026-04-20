@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, SlotState } from "@/types";
+import { Card } from "@/types";
 import {
   X,
   Shield,
@@ -30,6 +30,7 @@ interface CardDetailsModalProps {
   slotId?: string;
   currentSlotState?: "OWNED" | "WISHLIST";
   currentLanguage?: "JP" | "EN";
+  wishlistUrls?: any[]; // Using any[] to avoid importing WishlistUrl if types are not easily accessible, but actually I should try to use the type if possible.
 }
 
 export default function CardDetailsModal({
@@ -41,6 +42,7 @@ export default function CardDetailsModal({
   slotId,
   currentSlotState,
   currentLanguage,
+  wishlistUrls = [],
 }: CardDetailsModalProps) {
   const { album, updateSlot, addPage, clearSlot } = useAlbum();
 
@@ -53,6 +55,13 @@ export default function CardDetailsModal({
     currentLanguage,
   );
   const [stateChanged, setStateChanged] = useState(false);
+
+  // Sync internal state with props when they change
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (currentSlotState) setSlotState(currentSlotState);
+    if (currentLanguage) setSlotLanguage(currentLanguage);
+  }, [currentSlotState, currentLanguage]);
 
   // When opened from database (add to album)
   const [addState, setAddState] = useState<"OWNED" | "WISHLIST">("OWNED");
@@ -94,6 +103,25 @@ export default function CardDetailsModal({
   };
 
   const handleOpenUrls = () => {
+    if (readOnly && wishlistUrls.length > 0) {
+      window.dispatchEvent(
+        new CustomEvent("open-wishlist-urls", {
+          detail: {
+            pageId: "readonly",
+            slot: {
+              slotId: "readonly",
+              state: "WISHLIST",
+              cardData: card,
+              wishlistUrls,
+              language: currentLanguage,
+            },
+          },
+        }),
+      );
+      onClose();
+      return;
+    }
+
     if (slotPageId && slotId) {
       window.dispatchEvent(
         new CustomEvent("open-wishlist-urls", {
@@ -634,6 +662,46 @@ export default function CardDetailsModal({
                         + Crear nueva página
                       </button>
                     )}
+                  </div>
+                ) : readOnly && (currentLanguage || wishlistUrls.length > 0) ? (
+                  <div className="mt-auto pt-6 border-t border-white/6 space-y-4">
+                    <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
+                      Información de la Carta
+                    </h3>
+
+                    <div className="flex flex-wrap gap-4">
+                      {currentLanguage && (
+                        <div>
+                          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">
+                            Idioma
+                          </p>
+                          <div
+                            className={twMerge(
+                              "px-4 py-2 rounded-xl border text-sm font-black transition-all",
+                              currentLanguage === "JP"
+                                ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                                : "bg-blue-500/10 text-blue-400 border-blue-500/30",
+                            )}
+                          >
+                            {currentLanguage === "JP" ? "JP" : "EN"}
+                          </div>
+                        </div>
+                      )}
+
+                      {wishlistUrls.length > 0 && (
+                        <div className="flex-1">
+                          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">
+                            Enlaces y Precios
+                          </p>
+                          <button
+                            onClick={handleOpenUrls}
+                            className="cursor-pointer w-full flex items-center justify-center gap-2 py-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 text-xs font-black uppercase tracking-wider hover:bg-blue-500/20 transition-all"
+                          >
+                            <Grid size={14} /> Ver Enlaces de Compra
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : null}
               </div>

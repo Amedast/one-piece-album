@@ -35,6 +35,7 @@ type DetailContext = {
   slotId: string;
   currentState: "OWNED" | "WISHLIST";
   currentLanguage?: "JP" | "EN";
+  wishlistUrls?: any[];
 };
 
 export default function AlbumPage() {
@@ -79,11 +80,10 @@ export default function AlbumPage() {
 
   useEffect(() => {
     const handleOpenWishlist = (e: CustomEvent) => {
-      const { pageId, slotId } = e.detail;
-      const albumPage = album.pages.find((p) => p.pageId === pageId);
-      const slot = albumPage?.slots.find((s) => s.slotId === slotId);
-      if (pageId && slot) {
-        setWishlistCtx({ pageId, slot });
+      const { pageId, slotId, slot: passedSlot } = e.detail;
+      const targetSlot = passedSlot || album.pages.find((p) => p.pageId === pageId)?.slots.find((s) => s.slotId === slotId);
+      if (pageId && targetSlot) {
+        setWishlistCtx({ pageId, slot: targetSlot });
       }
     };
     window.addEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
@@ -232,20 +232,22 @@ export default function AlbumPage() {
                       );
                       if (slot) setWishlistCtx({ pageId, slot });
                     }}
-                    onOpenCardDetails={(
-                      card,
-                      pageId,
-                      slotId,
-                      currentState,
-                      currentLanguage,
-                    ) =>
-                      setDetailCtx({
+                      onOpenCardDetails={(
                         card,
                         pageId,
                         slotId,
                         currentState,
                         currentLanguage,
-                      })
+                        wishlistUrls,
+                      ) =>
+                        setDetailCtx({
+                          card,
+                          pageId,
+                          slotId,
+                          currentState,
+                          currentLanguage,
+                          wishlistUrls,
+                        })
                     }
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
@@ -289,6 +291,7 @@ export default function AlbumPage() {
                     slotId,
                     currentState,
                     currentLanguage,
+                    wishlistUrls,
                   ) =>
                     setDetailCtx({
                       card,
@@ -296,6 +299,7 @@ export default function AlbumPage() {
                       slotId,
                       currentState,
                       currentLanguage,
+                      wishlistUrls,
                     })
                   }
                   onDragStart={handleDragStart}
@@ -349,6 +353,7 @@ export default function AlbumPage() {
           slotId={detailCtx.slotId}
           currentSlotState={detailCtx.currentState}
           currentLanguage={detailCtx.currentLanguage}
+          wishlistUrls={detailCtx.wishlistUrls}
           isOpen={!!detailCtx}
           onClose={() => setDetailCtx(null)}
         />
@@ -393,6 +398,7 @@ function AlbumPagePanel({
     slotId: string,
     currentState: "OWNED" | "WISHLIST",
     currentLanguage?: "JP" | "EN",
+    wishlistUrls?: any[],
   ) => void;
   onDragStart: (pageId: string, slotId: string) => void;
   onDragOver: (pageId: string, slotId: string) => void;
@@ -444,6 +450,7 @@ function AlbumPagePanel({
                 slot.slotId,
                 slot.state as "OWNED" | "WISHLIST",
                 slot.language,
+                slot.wishlistUrls,
               )
             }
             onDragStart={onDragStart}

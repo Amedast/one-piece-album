@@ -55,6 +55,7 @@ interface AlbumContextType {
   togglePublic: () => void;
   // Manual Save
   hasUnsavedChanges: boolean;
+  isSaving: boolean;
   saveAlbumToServer: () => Promise<void>;
   // Stats
   totalOwned: number;
@@ -91,6 +92,7 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isPublic, setIsPublic] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // ─── Load album when user logs in ────────────────────────────────────────
   useEffect(() => {
@@ -145,6 +147,7 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
   // ─── Track Unsaved Changes & Manual Save ─────────────────────────────────
   const saveAlbumToServer = async () => {
     if (!user) return;
+    setIsSaving(true);
     try {
       await fetch("/api/album", {
         method: "POST",
@@ -154,6 +157,8 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
       setHasUnsavedChanges(false);
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -387,6 +392,7 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
         deleteCustomCard,
         togglePublic,
         hasUnsavedChanges,
+        isSaving,
         saveAlbumToServer,
         totalOwned,
         totalWishlist,

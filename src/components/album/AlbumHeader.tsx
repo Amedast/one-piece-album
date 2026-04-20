@@ -17,6 +17,7 @@ import {
   Save,
   Columns,
   Square,
+  Loader2,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
@@ -49,17 +50,25 @@ export default function AlbumHeader({
   onOpenCustomCard,
   onOpenPageManager,
 }: AlbumHeaderProps) {
-  const { totalOwned, totalWishlist, isPublic, togglePublic, hasUnsavedChanges, saveAlbumToServer } = useAlbum();
+  const {
+    totalOwned,
+    totalWishlist,
+    isPublic,
+    togglePublic,
+    hasUnsavedChanges,
+    isSaving,
+    saveAlbumToServer,
+  } = useAlbum();
   const { data: session } = useSession();
 
   // currentPageIndex is the spread index (0-based) in double mode; or page index (0-based) in single mode
-  const currentSpread = isSinglePageView 
-    ? currentPageIndex + 1 
+  const currentSpread = isSinglePageView
+    ? currentPageIndex + 1
     : Math.floor(currentPageIndex / 2) + 1;
 
   // Visual spread count
-  const displaySpreads = isSinglePageView 
-    ? totalPages + 2 
+  const displaySpreads = isSinglePageView
+    ? totalPages + 2
     : Math.floor((totalPages + 2) / 2);
 
   const handleSave = async () => {
@@ -89,34 +98,41 @@ export default function AlbumHeader({
           <motion.button
             onClick={onToggleSinglePageView}
             whileTap={{ scale: 0.95 }}
-            className="p-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-400 hover:text-white transition-all hidden md:flex"
+            className="cursor-pointer p-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-400 hover:text-white transition-all hidden md:flex"
             title={isSinglePageView ? "Ver dos páginas" : "Ver una página"}
           >
             {isSinglePageView ? <Columns size={16} /> : <Square size={16} />}
           </motion.button>
 
-          {/* Save modifications */}
-          {hasUnsavedChanges && (
-            <motion.button
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              onClick={handleSave}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:bg-blue-500/30 cursor-pointer"
-            >
+          <motion.button
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={handleSave}
+            disabled={isSaving}
+            whileTap={{ scale: 0.95 }}
+            className={twMerge(
+              "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 shadow-[0_0_15px_rgba(59,130,246,0.3)] cursor-pointer",
+              isSaving
+                ? "bg-blue-500/10 border-blue-500/20 text-blue-300 opacity-70"
+                : "bg-blue-500/20 text-blue-400 border-blue-500/50 hover:bg-blue-500/30",
+            )}
+          >
+            {isSaving ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
               <Save size={16} className="animate-pulse" />
-              <span className="text-xs uppercase tracking-wider font-black">
-                Guardar Cambios
-              </span>
-            </motion.button>
-          )}
+            )}
+            <span className="text-xs uppercase tracking-wider font-black">
+              {isSaving ? "Guardando..." : "Guardar Cambios"}
+            </span>
+          </motion.button>
 
           {/* Reorganize toggle */}
           <motion.button
             onClick={onToggleReorganize}
             whileTap={{ scale: 0.95 }}
             className={twMerge(
-              "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200",
+              "cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200",
               isReorganizeMode
                 ? "bg-gold text-obsidian border-gold shadow-lg shadow-gold/20"
                 : "bg-leather-light border-white/10 text-zinc-300 hover:border-gold/40 hover:text-gold",
@@ -136,7 +152,7 @@ export default function AlbumHeader({
           <motion.button
             onClick={onAddPage}
             whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-300 hover:text-white transition-all"
+            className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-300 hover:text-white transition-all"
             title="Añadir página"
           >
             <Plus size={16} />
@@ -149,7 +165,7 @@ export default function AlbumHeader({
           <motion.button
             onClick={onOpenCustomCard}
             whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-leather-light border border-white/10 hover:border-purple-400/40 rounded-xl text-zinc-300 hover:text-purple-400 transition-all"
+            className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-leather-light border border-white/10 hover:border-purple-400/40 rounded-xl text-zinc-300 hover:text-purple-400 transition-all"
             title="Crear carta personalizada"
           >
             <Wand2 size={16} />
@@ -163,10 +179,10 @@ export default function AlbumHeader({
             onClick={togglePublic}
             whileTap={{ scale: 0.95 }}
             className={twMerge(
-              "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200",
+              "cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200",
               isPublic
                 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
-                : "bg-leather-light border-white/10 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+                : "bg-leather-light border-white/10 text-zinc-500 hover:border-white/20 hover:text-zinc-300",
             )}
             title={isPublic ? "Tu álbum es público" : "Tu álbum es privado"}
           >
@@ -180,7 +196,7 @@ export default function AlbumHeader({
           <motion.button
             onClick={onOpenPageManager}
             whileTap={{ scale: 0.95 }}
-            className="p-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-400 hover:text-white transition-all"
+            className="cursor-pointer p-2.5 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-zinc-400 hover:text-white transition-all"
             title="Gestionar páginas"
           >
             <Settings size={16} />

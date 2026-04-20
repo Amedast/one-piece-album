@@ -189,6 +189,8 @@ export default function AlbumSearchModal({
         if (parsed.selectedSets) setSelectedSets(parsed.selectedSets);
         if (parsed.showAltArtsOnly !== undefined)
           setShowAltArtsOnly(parsed.showAltArtsOnly);
+        if (parsed.selectedState) setSelectedState(parsed.selectedState);
+        if (parsed.selectedLanguage) setSelectedLanguage(parsed.selectedLanguage);
       } catch (e) {
         console.error("Error parsing cached filters", e);
       }
@@ -207,6 +209,8 @@ export default function AlbumSearchModal({
       selectedColors,
       selectedSets,
       showAltArtsOnly,
+      selectedState,
+      selectedLanguage,
     };
     sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
   }, [
@@ -216,12 +220,16 @@ export default function AlbumSearchModal({
     selectedColors,
     selectedSets,
     showAltArtsOnly,
+    selectedState,
+    selectedLanguage,
     isInitialized,
   ]);
 
   useEffect(() => {
-    if (isOpen) setSelectedState(defaultState);
-  }, [isOpen, defaultState]);
+    if (isOpen && !isInitialized) {
+      // Logic for first time open if needed
+    }
+  }, [isOpen, isInitialized]);
 
   const toggleType = (t: string) => {
     setSelectedTypes((prev) =>
@@ -402,7 +410,6 @@ export default function AlbumSearchModal({
                     }
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    autoFocus
                     className="w-full bg-obsidian border border-white/10 focus:border-gold/40 rounded-2xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-zinc-600 outline-none transition-colors font-crimson"
                   />
                   {query && (
@@ -625,7 +632,7 @@ export default function AlbumSearchModal({
                     ref={ref}
                     className="mt-8 py-6 flex justify-center w-full"
                   >
-                    {isFetchingMore && (
+                    {isFetchingMore && hasMore && (
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 size={24} className="text-gold animate-spin" />
                         <p className="text-[9px] font-black uppercase text-gold/50 tracking-widest">

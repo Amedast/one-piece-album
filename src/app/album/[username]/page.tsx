@@ -25,7 +25,11 @@ export default function PublicAlbumPage({
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [selectedCard, setSelectedCard] = useState<{
+    card: Card;
+    language?: "JP" | "EN";
+    wishlistUrls?: any[];
+  } | null>(null);
   const [wishlistCtx, setWishlistCtx] = useState<{
     pageId: string;
     slot: AlbumSlot;
@@ -54,6 +58,17 @@ export default function PublicAlbumPage({
       .catch(() => setNotFound(true))
       .finally(() => setIsLoading(false));
   }, [username]);
+
+  useEffect(() => {
+    const handleOpenWishlist = (e: CustomEvent) => {
+      const { pageId, slot } = e.detail;
+      if (pageId && slot) {
+        setWishlistCtx({ pageId, slot });
+      }
+    };
+    window.addEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
+    return () => window.removeEventListener("open-wishlist-urls", handleOpenWishlist as EventListener);
+  }, []);
 
   if (isLoading) {
     return (
@@ -153,7 +168,7 @@ export default function PublicAlbumPage({
             <div className="text-[9px] font-black uppercase text-zinc-600 tracking-widest text-center mb-0.5">
               Página
             </div>
-            <div className="font-cinzel text-lg font-bold text-white">
+            <div className="font-cinzel text-lg font-bold text-white text-center">
               {currentPageIndex + 1}
             </div>
           </div>
@@ -177,7 +192,7 @@ export default function PublicAlbumPage({
               <ReadOnlyPage
                 page={leftPage}
                 pageNumber={currentPageIndex}
-                onCardClick={(card) => setSelectedCard(card)}
+                onCardClick={(card, language, wishlistUrls) => setSelectedCard({ card, language, wishlistUrls })}
                 onOpenWishlistUrls={(pageId, slot) =>
                   setWishlistCtx({ pageId, slot })
                 }
@@ -198,7 +213,7 @@ export default function PublicAlbumPage({
               <ReadOnlyPage
                 page={rightPage}
                 pageNumber={currentPageIndex + 1}
-                onCardClick={(card) => setSelectedCard(card)}
+                onCardClick={(card, language, wishlistUrls) => setSelectedCard({ card, language, wishlistUrls })}
                 onOpenWishlistUrls={(pageId, slot) =>
                   setWishlistCtx({ pageId, slot })
                 }
@@ -216,7 +231,9 @@ export default function PublicAlbumPage({
 
       {selectedCard && (
         <CardDetailsModal
-          card={selectedCard}
+          card={selectedCard.card}
+          currentLanguage={selectedCard.language}
+          wishlistUrls={selectedCard.wishlistUrls}
           isOpen
           onClose={() => setSelectedCard(null)}
           readOnly
@@ -244,7 +261,7 @@ function ReadOnlyPage({
 }: {
   page: AlbumPage;
   pageNumber: number;
-  onCardClick: (card: Card) => void;
+  onCardClick: (card: Card, language?: "JP" | "EN", wishlistUrls?: any[]) => void;
   onOpenWishlistUrls: (pageId: string, slot: AlbumSlot) => void;
 }) {
   return (
@@ -274,7 +291,7 @@ function ReadOnlyPage({
             onOpenSearch={() => {}}
             onClearSlot={() => {}}
             onOpenWishlistUrls={() => onOpenWishlistUrls(page.pageId, slot)}
-            onOpenCardDetails={(card) => onCardClick(card)}
+            onOpenCardDetails={(card) => onCardClick(card, slot.language, slot.wishlistUrls)}
             onDragStart={() => {}}
             onDragOver={() => {}}
             onDrop={() => {}}

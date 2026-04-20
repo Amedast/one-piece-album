@@ -83,7 +83,9 @@ export default function AlbumSlotCard({
     <div
       className={twMerge(
         "relative group select-none",
-        isReorganizeMode ? "touch-none [-webkit-touch-callout:none]" : "touch-pan-x touch-pan-y",
+        isReorganizeMode
+          ? "touch-none [-webkit-touch-callout:none]"
+          : "touch-pan-x touch-pan-y",
         isReorganizeMode && !isEmpty && "cursor-grab active:cursor-grabbing",
         isReorganizeMode && isEmpty && "cursor-pointer",
         isDragTarget && !isEmpty && "scale-[1.04] z-10",
@@ -173,14 +175,21 @@ export default function AlbumSlotCard({
                 {slot.language}
               </div>
             )}
+
+            {/* Price badge if any wishlist entry has a price */}
+            {slot.wishlistUrls?.find((u) => u.price) && (
+              <div className="absolute left-2 bottom-2 px-1.5 py-0.5 rounded text-[12px] font-black uppercase tracking-wider text-white backdrop-blur-sm shadow-md border border-white/30 bg-gold/40">
+                {slot.wishlistUrls.find((u) => u.price)?.price}€
+              </div>
+            )}
           </>
         )}
 
-        {/* Reorganize drag handle */}
+        {/* Reorganize drag handle - Larger click area */}
         {isReorganizeMode && !isEmpty && (
-          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="p-2 bg-black/50 rounded-lg backdrop-blur-sm">
-              <GripVertical size={20} className="text-gold" />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <div className="p-4 bg-black/60 rounded-2xl backdrop-blur-md border border-gold/30 scale-110 group-active:scale-95 transition-transform">
+              <GripVertical size={32} className="text-gold" />
             </div>
           </div>
         )}

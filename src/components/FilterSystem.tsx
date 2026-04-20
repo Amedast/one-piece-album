@@ -196,10 +196,10 @@ export default function FilterSystem({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.96 }}
                 transition={{ duration: 0.2 }}
-                className="absolute right-0 mt-3 w-[calc(100vw-2rem)] md:w-[600px] bg-leather border border-white/10 rounded-3xl shadow-2xl shadow-black/60 z-50 p-7 overflow-hidden flex flex-col max-h-[85vh]"
+                className="absolute right-0 mt-3 w-[calc(100vw-2rem)] md:w-[600px] bg-leather border border-white/10 rounded-3xl shadow-2xl shadow-black/60 z-50 overflow-hidden flex flex-col max-h-[85vh]"
               >
                 {/* Filter header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between p-7 border-b border-white/5">
                   <h3 className="font-cinzel text-lg font-bold text-white">
                     Filtros
                   </h3>
@@ -213,120 +213,119 @@ export default function FilterSystem({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Types */}
-                  <FilterSection label="Tipo de Carta">
-                    {ALL_TYPES.map((t) => (
-                      <FilterPill
-                        key={t}
-                        label={t}
-                        active={selectedTypes.includes(t)}
-                        onClick={() => toggleType(t)}
-                      />
-                    ))}
+                <div className="flex-1 overflow-y-auto p-7 space-y-8 custom-scrollbar">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Types */}
+                    <FilterSection label="Tipo de Carta">
+                      {ALL_TYPES.map((t) => (
+                        <FilterPill
+                          key={t}
+                          label={t}
+                          active={selectedTypes.includes(t)}
+                          onClick={() => toggleType(t)}
+                        />
+                      ))}
+                    </FilterSection>
+
+                    {/* Rarities */}
+                    <FilterSection label="Rareza">
+                      {ALL_RARITIES.map((r) => (
+                        <FilterPill
+                          key={r}
+                          label={r}
+                          active={selectedRarities.includes(r)}
+                          onClick={() => toggleRarity(r)}
+                        />
+                      ))}
+                    </FilterSection>
+                  </div>
+
+                  {/* Colors */}
+                  <FilterSection label="Color">
+                    <div className="flex flex-wrap gap-2">
+                      {ALL_COLORS.map((c) => (
+                        <FilterPill
+                          key={c}
+                          label={c}
+                          active={selectedColors.includes(c)}
+                          onClick={() => toggleColor(c)}
+                        />
+                      ))}
+                    </div>
                   </FilterSection>
 
-                  {/* Rarities */}
-                  <FilterSection label="Rareza">
-                    {ALL_RARITIES.map((r) => (
-                      <FilterPill
-                        key={r}
-                        label={r}
-                        active={selectedRarities.includes(r)}
-                        onClick={() => toggleRarity(r)}
+                  {/* Sets Section */}
+                  <FilterSection label="Sets / Colecciones">
+                    <div className="relative mb-3">
+                      <Search
+                        size={12}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
                       />
-                    ))}
-                  </FilterSection>
-                </div>
-
-                {/* Colors */}
-                <FilterSection label="Color" className="mt-6">
-                  <div className="flex flex-wrap gap-2">
-                    {ALL_COLORS.map((c) => (
-                      <FilterPill
-                        key={c}
-                        label={c}
-                        active={selectedColors.includes(c)}
-                        onClick={() => toggleColor(c)}
+                      <input
+                        type="text"
+                        placeholder="Buscar set..."
+                        value={setSearch}
+                        onChange={(e) => setSetSearch(e.target.value)}
+                        className="w-full bg-obsidian/50 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder-zinc-700 outline-none focus:border-gold/30 transition-colors font-crimson"
                       />
-                    ))}
-                  </div>
-                </FilterSection>
-
-                {/* Sets Section */}
-                <FilterSection
-                  label="Sets / Colecciones"
-                  className="mt-6 flex-1 flex flex-col min-h-0"
-                >
-                  <div className="relative mb-3 shrink-0">
-                    <Search
-                      size={12}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Buscar set..."
-                      value={setSearch}
-                      onChange={(e) => setSetSearch(e.target.value)}
-                      className="w-full bg-obsidian/50 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder-zinc-700 outline-none focus:border-gold/30 transition-colors font-crimson"
-                    />
-                  </div>
-                  <div className="overflow-y-auto pr-2 custom-scrollbar grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-50 w-full">
-                    {filteredSets.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => toggleSet(s.id)}
-                        className={twMerge(
-                          "cursor-pointer flex items-center gap-2 p-2 rounded-xl border text-[12px] text-left transition-all",
-                          selectedSets.includes(s.id)
-                            ? "bg-gold/10 border-gold/30 text-gold"
-                            : "bg-leather-light/50 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300",
-                        )}
-                      >
-                        <div
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      {filteredSets.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => toggleSet(s.id)}
                           className={twMerge(
-                            "shrink-0 w-12 py-1 rounded bg-obsidian text-center font-black",
+                            "cursor-pointer flex items-center gap-2 p-2 rounded-xl border text-[12px] text-left transition-all",
                             selectedSets.includes(s.id)
-                              ? "text-gold"
-                              : "text-zinc-600",
+                              ? "bg-gold/10 border-gold/30 text-gold"
+                              : "bg-leather-light/50 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300",
                           )}
                         >
-                          {s.title_parts.label || "???"}
+                          <div
+                            className={twMerge(
+                              "shrink-0 w-12 py-1 rounded bg-obsidian text-center font-black",
+                              selectedSets.includes(s.id)
+                                ? "text-gold"
+                                : "text-zinc-600",
+                            )}
+                          >
+                            {s.title_parts.label || "???"}
+                          </div>
+                          <span className="truncate font-bold tracking-tight leading-tight">
+                            {s.title_parts.title || s.raw_title}
+                          </span>
+                          {selectedSets.includes(s.id) && (
+                            <Check size={10} className="ml-auto shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                      {filteredSets.length === 0 && (
+                        <div className="col-span-full py-4 text-center text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+                          No se encontraron sets
                         </div>
-                        <span className="truncate font-bold tracking-tight leading-tight">
-                          {s.title_parts.title || s.raw_title}
-                        </span>
-                        {selectedSets.includes(s.id) && (
-                          <Check size={10} className="ml-auto shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                    {filteredSets.length === 0 && (
-                      <div className="col-span-full py-4 text-center text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                        No se encontraron sets
-                      </div>
-                    )}
-                  </div>
-                </FilterSection>
-
-                {/* Alt arts */}
-                <div className="mt-6 pt-5 border-t border-white/8">
-                  <button
-                    onClick={() => setShowAltArtsOnly(!showAltArtsOnly)}
-                    className={twMerge(
-                      "cursor-pointer w-full p-4 rounded-2xl border flex items-center justify-between transition-all",
-                      showAltArtsOnly
-                        ? "bg-gold/10 border-gold/40 text-gold"
-                        : "bg-leather-light border-white/8 text-zinc-500 hover:border-white/15",
-                    )}
-                  >
-                    <div className="text-left">
-                      <div className="text-xs font-black uppercase italic tracking-wider">
-                        Solo Alt Arts
-                      </div>
+                      )}
                     </div>
-                    {showAltArtsOnly && <Check size={18} />}
-                  </button>
+                  </FilterSection>
+
+                  {/* Alt arts */}
+                  <div className="pt-5 border-t border-white/8">
+                    <button
+                      onClick={() => setShowAltArtsOnly(!showAltArtsOnly)}
+                      className={twMerge(
+                        "cursor-pointer w-full p-4 rounded-2xl border flex items-center justify-between transition-all",
+                        showAltArtsOnly
+                          ? "bg-gold/10 border-gold/40 text-gold"
+                          : "bg-leather-light border-white/8 text-zinc-500 hover:border-white/15",
+                      )}
+                    >
+                      <div className="text-left">
+                        <div className="text-xs font-black uppercase italic tracking-wider">
+                          Solo Alt Arts
+                        </div>
+                      </div>
+                      {showAltArtsOnly && <Check size={18} />}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </>
