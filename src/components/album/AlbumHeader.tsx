@@ -57,6 +57,7 @@ export default function AlbumHeader({
     togglePublic,
     hasUnsavedChanges,
     isSaving,
+    saveError,
     saveAlbumToServer,
   } = useAlbum();
   const { data: session } = useSession();
@@ -203,6 +204,13 @@ export default function AlbumHeader({
           </motion.button>
         </div>
       </div>
+
+      {/* Save error banner */}
+      {saveError && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 flex items-center gap-2">
+          <span className="text-red-400 text-xs font-bold">{saveError}</span>
+        </div>
+      )}
 
       {/* Navigation row */}
       <div className="flex items-center justify-between gap-4">

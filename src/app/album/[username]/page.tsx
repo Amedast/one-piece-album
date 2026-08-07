@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Lock, User, ChevronLeft, ChevronRight } from "lucide-react";
-import AlbumSlotCard from "@/components/album/AlbumSlotCard";
-import type { Album, AlbumPage, Card, AlbumSlot } from "@/types";
+import AlbumPagePanel from "@/components/album/AlbumPagePanel";
+import type { Album, AlbumSlot, Card, WishlistUrl } from "@/types";
 import CardDetailsModal from "@/components/CardDetailsModal";
 import WishlistUrlsModal from "@/components/album/WishlistUrlsModal";
 
@@ -29,13 +29,12 @@ export default function PublicAlbumPage({
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
   const [selectedCard, setSelectedCard] = useState<{
     card: Card;
     language?: "JP" | "EN";
-    wishlistUrls?: any[];
+    wishlistUrls?: WishlistUrl[];
   } | null>(null);
   const [wishlistCtx, setWishlistCtx] = useState<{
     pageId: string;
@@ -65,24 +64,6 @@ export default function PublicAlbumPage({
       .catch(() => setNotFound(true))
       .finally(() => setIsLoading(false));
   }, [username]);
-
-  useEffect(() => {
-    const handleOpenWishlist = (e: CustomEvent) => {
-      const { pageId, slot } = e.detail;
-      if (pageId && slot) {
-        setWishlistCtx({ pageId, slot });
-      }
-    };
-    window.addEventListener(
-      "open-wishlist-urls",
-      handleOpenWishlist as EventListener,
-    );
-    return () =>
-      window.removeEventListener(
-        "open-wishlist-urls",
-        handleOpenWishlist as EventListener,
-      );
-  }, []);
 
   if (isLoading) {
     return (
@@ -217,14 +198,14 @@ export default function PublicAlbumPage({
           >
             {/* Left page */}
             {leftPage ? (
-              <ReadOnlyPage
+              <AlbumPagePanel
                 page={leftPage}
                 pageNumber={currentPageIndex}
-                onCardClick={(card, language, wishlistUrls) =>
+                readOnly
+                variant="tall"
+                onOpenWishlistUrls={(pageId, slot) => setWishlistCtx({ pageId, slot })}
+                onOpenCardDetails={(card, _pageId, _slotId, _state, language, wishlistUrls) =>
                   setSelectedCard({ card, language, wishlistUrls })
-                }
-                onOpenWishlistUrls={(pageId, slot) =>
-                  setWishlistCtx({ pageId, slot })
                 }
               />
             ) : (
@@ -240,14 +221,14 @@ export default function PublicAlbumPage({
 
             {/* Right page */}
             {rightPage ? (
-              <ReadOnlyPage
+              <AlbumPagePanel
                 page={rightPage}
                 pageNumber={currentPageIndex + 1}
-                onCardClick={(card, language, wishlistUrls) =>
+                readOnly
+                variant="tall"
+                onOpenWishlistUrls={(pageId, slot) => setWishlistCtx({ pageId, slot })}
+                onOpenCardDetails={(card, _pageId, _slotId, _state, language, wishlistUrls) =>
                   setSelectedCard({ card, language, wishlistUrls })
-                }
-                onOpenWishlistUrls={(pageId, slot) =>
-                  setWishlistCtx({ pageId, slot })
                 }
               />
             ) : (
@@ -269,6 +250,19 @@ export default function PublicAlbumPage({
           isOpen
           onClose={() => setSelectedCard(null)}
           readOnly
+          onOpenWishlistUrls={() => {
+            if (selectedCard.wishlistUrls && selectedCard.wishlistUrls.length > 0) {
+              const syntheticSlot: AlbumSlot = {
+                slotId: "readonly",
+                state: "WISHLIST",
+                cardData: selectedCard.card,
+                wishlistUrls: selectedCard.wishlistUrls,
+                language: selectedCard.language,
+              };
+              setWishlistCtx({ pageId: "readonly", slot: syntheticSlot });
+              setSelectedCard(null);
+            }
+          }}
         />
       )}
 
@@ -285,64 +279,9 @@ export default function PublicAlbumPage({
   );
 }
 
-function ReadOnlyPage({
-  page,
-  pageNumber,
-  onCardClick,
-  onOpenWishlistUrls,
-}: {
-  page: AlbumPage;
-  pageNumber: number;
-  onCardClick: (
-    card: Card,
-    language?: "JP" | "EN",
-    wishlistUrls?: any[],
-  ) => void;
-  onOpenWishlistUrls: (pageId: string, slot: AlbumSlot) => void;
-}) {
+function CoverPlaceholder() {
   return (
-    <div className="flex-1 bg-leather min-h-160 lg:min-h-175">
-      <div className="flex items-center justify-between px-8 py-4 border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
-          <span className="font-cinzel text-[11px] text-zinc-500 tracking-widest uppercase">
-            {page.title}
-          </span>
-        </div>
-        <span className="font-mono text-[10px] text-zinc-700">
-          {pageNumber}
-        </span>
-      </div>
-      <div className="grid grid-cols-4 gap-4 p-8">
-        {page.slots.map((slot, index) => (
-          <AlbumSlotCard
-            key={slot.slotId}
-            slot={slot}
-            slotIndex={index}
-            pageId={page.pageId}
-            isReorganizeMode={false}
-            isDragSource={false}
-            isDragTarget={false}
-            readOnly
-            onOpenSearch={() => {}}
-            onClearSlot={() => {}}
-            onOpenWishlistUrls={() => onOpenWishlistUrls(page.pageId, slot)}
-            onOpenCardDetails={(card) =>
-              onCardClick(card, slot.language, slot.wishlistUrls)
-            }
-            onDragStart={() => {}}
-            onDragOver={() => {}}
-            onDrop={() => {}}
-            onDragEnd={() => {}}
-          />
-        ))}
-      </div>
-    </div>
+    <div className="flex-1 bg-leather min-h-160 lg:min-h-175 flex items-center justify-center" />
   );
 }
 
-function CoverPlaceholder() {
-  return (
-    <div className="flex-1 bg-leather min-h-160 lg:min-h-175 flex items-center justify-center"></div>
-  );
-}

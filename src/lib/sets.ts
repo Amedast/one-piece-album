@@ -43,14 +43,14 @@ export async function loadSets(): Promise<SetData[]> {
     });
 
     // 2. Save in device for future occasions
-    await saveToDevice(setsArray);
+    saveToDevice(setsArray);
 
     console.log("Sets updated from GitHub");
     return setsArray;
   } catch (error) {
     console.warn("Fetch failed, attempting to recover local backup...", error);
 
-    const localSets = await getFromDevice();
+    const localSets = getFromDevice();
 
     if (localSets) {
       return localSets;
@@ -64,7 +64,7 @@ export async function loadSets(): Promise<SetData[]> {
 /**
  * Persistence in the device
  */
-async function saveToDevice(data: SetData[]) {
+function saveToDevice(data: SetData[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(SETS_CACHE_KEY, JSON.stringify(data));
@@ -76,7 +76,7 @@ async function saveToDevice(data: SetData[]) {
 /**
  * Recovery from persistence
  */
-async function getFromDevice(): Promise<SetData[] | null> {
+function getFromDevice(): SetData[] | null {
   if (typeof window === "undefined") return null;
   try {
     const data = localStorage.getItem(SETS_CACHE_KEY);

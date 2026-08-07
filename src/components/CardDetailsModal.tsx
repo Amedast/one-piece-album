@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card } from "@/types";
+import { Card, WishlistUrl } from "@/types";
 import {
   X,
   Shield,
@@ -30,7 +30,9 @@ interface CardDetailsModalProps {
   slotId?: string;
   currentSlotState?: "OWNED" | "WISHLIST";
   currentLanguage?: "JP" | "EN";
-  wishlistUrls?: any[]; // Using any[] to avoid importing WishlistUrl if types are not easily accessible, but actually I should try to use the type if possible.
+  wishlistUrls?: WishlistUrl[];
+  /** Called when the user wants to open the wishlist URLs panel. The parent handles opening WishlistUrlsModal. */
+  onOpenWishlistUrls?: () => void;
 }
 
 export default function CardDetailsModal({
@@ -43,6 +45,7 @@ export default function CardDetailsModal({
   currentSlotState,
   currentLanguage,
   wishlistUrls = [],
+  onOpenWishlistUrls,
 }: CardDetailsModalProps) {
   const { album, updateSlot, addPage, clearSlot } = useAlbum();
 
@@ -103,33 +106,8 @@ export default function CardDetailsModal({
   };
 
   const handleOpenUrls = () => {
-    if (readOnly && wishlistUrls.length > 0) {
-      window.dispatchEvent(
-        new CustomEvent("open-wishlist-urls", {
-          detail: {
-            pageId: "readonly",
-            slot: {
-              slotId: "readonly",
-              state: "WISHLIST",
-              cardData: card,
-              wishlistUrls,
-              language: currentLanguage,
-            },
-          },
-        }),
-      );
-      onClose();
-      return;
-    }
-
-    if (slotPageId && slotId) {
-      window.dispatchEvent(
-        new CustomEvent("open-wishlist-urls", {
-          detail: { pageId: slotPageId, slotId },
-        }),
-      );
-      onClose();
-    }
+    onOpenWishlistUrls?.();
+    onClose();
   };
 
   const isRare =

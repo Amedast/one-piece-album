@@ -2,9 +2,19 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { username } from "better-auth/plugins";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Singleton pattern: avoids creating multiple Pool instances during
+// Next.js Fast Refresh in development (each module re-evaluation would
+// otherwise open a new connection pool).
+const globalForPg = globalThis as unknown as { pgPool: Pool | undefined };
+
+const pool =
+  globalForPg.pgPool ??
+  new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+
+if (process.env.NODE_ENV !== "production") globalForPg.pgPool = pool;
+
 
 export const auth = betterAuth({
   database: pool,

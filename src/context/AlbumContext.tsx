@@ -56,6 +56,7 @@ interface AlbumContextType {
   // Manual Save
   hasUnsavedChanges: boolean;
   isSaving: boolean;
+  saveError: string | null;
   saveAlbumToServer: () => Promise<void>;
   // Stats
   totalOwned: number;
@@ -93,11 +94,11 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
   const [isPublic, setIsPublic] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // ─── Load album when user logs in ────────────────────────────────────────
   useEffect(() => {
     if (!user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAlbum({ ...EMPTY_ALBUM, pages: [createEmptyPage(0)] });
       setCustomCards([]);
       setIsLoaded(true);
@@ -142,21 +143,27 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(console.error)
       .finally(() => setIsLoaded(true));
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // State setters (setAlbum, setCustomCards, etc.) are stable — no need in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // ─── Track Unsaved Changes & Manual Save ─────────────────────────────────
   const saveAlbumToServer = async () => {
     if (!user) return;
     setIsSaving(true);
+    setSaveError(null);
     try {
-      await fetch("/api/album", {
+      const res = await fetch("/api/album", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ album }),
       });
+      if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+      // Only clear unsaved flag on confirmed success
       setHasUnsavedChanges(false);
     } catch (e) {
       console.error(e);
+      setSaveError("No se pudo guardar el álbum. Inténtalo de nuevo.");
     } finally {
       setIsSaving(false);
     }
@@ -173,7 +180,6 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
       isLoadedRef.current = true;
       return;
     } // skip first render after load
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasUnsavedChanges(true);
   }, [album, isLoaded]);
 
@@ -393,6 +399,7 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
         togglePublic,
         hasUnsavedChanges,
         isSaving,
+        saveError,
         saveAlbumToServer,
         totalOwned,
         totalWishlist,

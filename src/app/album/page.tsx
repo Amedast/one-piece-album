@@ -4,17 +4,17 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAlbum } from "@/context/AlbumContext";
 import AlbumHeader from "@/components/album/AlbumHeader";
-import AlbumSlotCard from "@/components/album/AlbumSlotCard";
+import AlbumPagePanel from "@/components/album/AlbumPagePanel";
 import AlbumSearchModal from "@/components/AlbumSearchModal";
 import WishlistUrlsModal from "@/components/album/WishlistUrlsModal";
 import CustomCardModal from "@/components/album/CustomCardModal";
 import PageManagerModal from "@/components/album/PageManagerModal";
 import CardDetailsModal from "@/components/CardDetailsModal";
 import type {
-  AlbumPage as AlbumPageData,
   AlbumSlot,
   Card,
   SlotState,
+  WishlistUrl,
 } from "@/types";
 import { BookOpen, Plus } from "lucide-react";
 
@@ -35,7 +35,7 @@ type DetailContext = {
   slotId: string;
   currentState: "OWNED" | "WISHLIST";
   currentLanguage?: "JP" | "EN";
-  wishlistUrls?: any[];
+  wishlistUrls?: WishlistUrl[];
 };
 
 export default function AlbumPage() {
@@ -79,33 +79,9 @@ export default function AlbumPage() {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
   const [detailCtx, setDetailCtx] = useState<DetailContext | null>(null);
-
-  useEffect(() => {
-    const handleOpenWishlist = (e: CustomEvent) => {
-      const { pageId, slotId, slot: passedSlot } = e.detail;
-      const targetSlot =
-        passedSlot ||
-        album.pages
-          .find((p) => p.pageId === pageId)
-          ?.slots.find((s) => s.slotId === slotId);
-      if (pageId && targetSlot) {
-        setWishlistCtx({ pageId, slot: targetSlot });
-      }
-    };
-    window.addEventListener(
-      "open-wishlist-urls",
-      handleOpenWishlist as EventListener,
-    );
-    return () =>
-      window.removeEventListener(
-        "open-wishlist-urls",
-        handleOpenWishlist as EventListener,
-      );
-  }, [album]);
 
   /* ---- Pages ---- */
   // In Double Page View: currentPageIndex is the even index (0,2,4) representing the left page
@@ -252,43 +228,23 @@ export default function AlbumPage() {
                 (leftPage ? (
                   <AlbumPagePanel
                     page={leftPage}
-                    pageNumber={currentPageIndex} // real page number = spreadIndex - 1 = currentPageIndex
+                    pageNumber={currentPageIndex}
                     isReorganizeMode={isReorganizeMode}
                     dragSource={dragSource}
                     dragTarget={dragTarget}
                     onOpenSearch={handleOpenSearch}
                     onClearSlot={clearSlot}
-                    onOpenWishlistUrls={(pageId, slotId) => {
-                      const slot = leftPage?.slots.find(
-                        (s) => s.slotId === slotId,
-                      );
-                      if (slot) setWishlistCtx({ pageId, slot });
-                    }}
-                    onOpenCardDetails={(
-                      card,
-                      pageId,
-                      slotId,
-                      currentState,
-                      currentLanguage,
-                      wishlistUrls,
-                    ) =>
-                      setDetailCtx({
-                        card,
-                        pageId,
-                        slotId,
-                        currentState,
-                        currentLanguage,
-                        wishlistUrls,
-                      })
+                    onOpenWishlistUrls={(pageId, slot) => setWishlistCtx({ pageId, slot })}
+                    onOpenCardDetails={(card, pageId, slotId, currentState, currentLanguage, wishlistUrls) =>
+                      setDetailCtx({ card, pageId, slotId, currentState, currentLanguage, wishlistUrls })
                     }
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
                     onDragEnd={handleDragEnd}
-                    side="left"
                   />
                 ) : (
-                  <CoverPlaceholder side="left" />
+                  <CoverPlaceholder />
                 ))}
 
               {/* Spine */}
@@ -304,45 +260,23 @@ export default function AlbumPage() {
               {rightPage ? (
                 <AlbumPagePanel
                   page={rightPage}
-                  pageNumber={
-                    isSinglePageView ? currentPageIndex : currentPageIndex + 1
-                  } // real page number = spreadIndex
+                  pageNumber={isSinglePageView ? currentPageIndex : currentPageIndex + 1}
                   isReorganizeMode={isReorganizeMode}
                   dragSource={dragSource}
                   dragTarget={dragTarget}
                   onOpenSearch={handleOpenSearch}
                   onClearSlot={clearSlot}
-                  onOpenWishlistUrls={(pageId, slotId) => {
-                    const slot = rightPage?.slots.find(
-                      (s) => s.slotId === slotId,
-                    );
-                    if (slot) setWishlistCtx({ pageId, slot });
-                  }}
-                  onOpenCardDetails={(
-                    card,
-                    pageId,
-                    slotId,
-                    currentState,
-                    currentLanguage,
-                    wishlistUrls,
-                  ) =>
-                    setDetailCtx({
-                      card,
-                      pageId,
-                      slotId,
-                      currentState,
-                      currentLanguage,
-                      wishlistUrls,
-                    })
+                  onOpenWishlistUrls={(pageId, slot) => setWishlistCtx({ pageId, slot })}
+                  onOpenCardDetails={(card, pageId, slotId, currentState, currentLanguage, wishlistUrls) =>
+                    setDetailCtx({ card, pageId, slotId, currentState, currentLanguage, wishlistUrls })
                   }
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   onDragEnd={handleDragEnd}
-                  side={isSinglePageView ? "left" : "right"}
                 />
               ) : isSinglePageView && currentPageIndex === 0 ? (
-                <CoverPlaceholder side="right" />
+                <CoverPlaceholder />
               ) : (
                 <EmptyPagePlaceholder onAddPage={() => addPage()} />
               )}
@@ -389,122 +323,26 @@ export default function AlbumPage() {
           wishlistUrls={detailCtx.wishlistUrls}
           isOpen={!!detailCtx}
           onClose={() => setDetailCtx(null)}
+          onOpenWishlistUrls={() => {
+            const slot = album.pages
+              .find((p) => p.pageId === detailCtx.pageId)
+              ?.slots.find((s) => s.slotId === detailCtx.slotId);
+            if (slot) setWishlistCtx({ pageId: detailCtx.pageId, slot });
+            setDetailCtx(null);
+          }}
         />
       )}
     </main>
   );
 }
 
-/* ---- Sub-components ---- */
-
-function AlbumPagePanel({
-  page,
-  pageNumber,
-  isReorganizeMode,
-  dragSource,
-  dragTarget,
-  onOpenSearch,
-  onClearSlot,
-  onOpenWishlistUrls,
-  onOpenCardDetails,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
-  side,
-}: {
-  page: AlbumPageData;
-  pageNumber: number;
-  isReorganizeMode: boolean;
-  dragSource: { pageId: string; slotId: string } | null;
-  dragTarget: { pageId: string; slotId: string } | null;
-  onOpenSearch: (
-    pageId: string,
-    slotId: string,
-    state?: "OWNED" | "WISHLIST",
-  ) => void;
-  onClearSlot: (pageId: string, slotId: string) => void;
-  onOpenWishlistUrls: (pageId: string, slotId: string) => void;
-  onOpenCardDetails: (
-    card: Card,
-    pageId: string,
-    slotId: string,
-    currentState: "OWNED" | "WISHLIST",
-    currentLanguage?: "JP" | "EN",
-    wishlistUrls?: any[],
-  ) => void;
-  onDragStart: (pageId: string, slotId: string) => void;
-  onDragOver: (pageId: string, slotId: string) => void;
-  onDrop: () => void;
-  onDragEnd: () => void;
-  side: "left" | "right";
-}) {
-  return (
-    <div className="flex-1 bg-leather min-h-[480px] lg:min-h-[700px]">
-      {/* Page header */}
-      <div className="flex items-center justify-between px-4 lg:px-8 py-3 lg:py-4 border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
-          <span className="font-cinzel text-[11px] text-zinc-500 tracking-widest uppercase">
-            {page.title}
-          </span>
-        </div>
-        <span className="font-mono text-[10px] text-zinc-700">
-          {pageNumber}
-        </span>
-      </div>
-
-      {/* Card grid: 4 cols × 3 rows */}
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-4 p-3 sm:p-8">
-        {page.slots.map((slot, index) => (
-          <AlbumSlotCard
-            key={slot.slotId}
-            slot={slot}
-            slotIndex={index}
-            pageId={page.pageId}
-            isReorganizeMode={isReorganizeMode}
-            isDragSource={
-              !!dragSource &&
-              dragSource.pageId === page.pageId &&
-              dragSource.slotId === slot.slotId
-            }
-            isDragTarget={
-              !!dragTarget &&
-              dragTarget.pageId === page.pageId &&
-              dragTarget.slotId === slot.slotId
-            }
-            onOpenSearch={onOpenSearch}
-            onClearSlot={onClearSlot}
-            onOpenWishlistUrls={onOpenWishlistUrls}
-            onOpenCardDetails={(card) =>
-              onOpenCardDetails(
-                card,
-                page.pageId,
-                slot.slotId,
-                slot.state as "OWNED" | "WISHLIST",
-                slot.language,
-                slot.wishlistUrls,
-              )
-            }
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            onDragEnd={onDragEnd}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** Shown as the left page of the very first spread (blank inside-cover). */
-function CoverPlaceholder({ side }: { side: "left" | "right" }) {
+function CoverPlaceholder() {
   return (
-    <div className="flex-1 bg-leather min-h-[640px] lg:min-h-[700px] flex items-center justify-center">
-      <p className="font-cinzel text-[11px] text-zinc-700 tracking-widest uppercase select-none"></p>
-    </div>
+    <div className="flex-1 bg-leather min-h-[640px] lg:min-h-[700px] flex items-center justify-center" />
   );
 }
+
 
 function EmptyPagePlaceholder({ onAddPage }: { onAddPage: () => void }) {
   return (

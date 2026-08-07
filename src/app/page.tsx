@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { fetchCards } from "@/lib/api";
 import { Card, GetCardsPayload, SlotState } from "@/types";
 import { useAlbum } from "@/context/AlbumContext";
@@ -12,6 +12,8 @@ import { ChevronLeft, ChevronRight, Compass, Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 
 const FILTERS_STORAGE_KEY = "ohara_filters_cache";
+/** Number of cards returned per API page — used to detect end of results */
+const PAGE_SIZE = 20;
 
 export default function Home() {
   const [cards, setCards] = useState<Card[]>([]);
@@ -25,7 +27,8 @@ export default function Home() {
   const [selectedSets, setSelectedSets] = useState<string[]>([]);
   const [showAltArtsOnly, setShowAltArtsOnly] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [page, setPage] = useState(0);
+  // Use a ref for page to avoid recreating loadCards on every page change
+  const pageRef = useRef(0);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
   const { ref, inView } = useInView({
@@ -34,29 +37,35 @@ export default function Home() {
 
   const { album } = useAlbum();
 
-  const getCardState = useCallback(
-    (cardId: string | number): SlotState => {
-      if (!album?.pages) return "EMPTY";
-      let state: SlotState = "EMPTY";
-      for (const p of album.pages) {
-        for (const slot of p.slots) {
-          if (String(slot.cardId) === String(cardId)) {
-            if (slot.state === "OWNED") return "OWNED";
-            if (slot.state === "WISHLIST") state = "WISHLIST";
+  // Pre-compute a Map for O(1) card state lookup instead of O(n²) per-card iteration
+  const cardStateMap = useMemo(() => {
+    const map = new Map<string, SlotState>();
+    if (!album?.pages) return map;
+    for (const p of album.pages) {
+      for (const s of p.slots) {
+        if (s.cardId !== undefined) {
+          const key = String(s.cardId);
+          // OWNED takes priority over WISHLIST
+          if (s.state === "OWNED" || !map.has(key)) {
+            map.set(key, s.state);
           }
         }
       }
-      return state;
-    },
-    [album],
+    }
+    return map;
+  }, [album]);
+
+  const getCardState = useCallback(
+    (cardId: string | number): SlotState =>
+      cardStateMap.get(String(cardId)) ?? "EMPTY",
+    [cardStateMap],
   );
 
   const loadCards = useCallback(
     async (isMore = false) => {
+      const currentPage = isMore ? pageRef.current + 1 : 0;
       if (isMore) setIsFetchingMore(true);
       else setIsLoading(true);
-
-      const currentPage = isMore ? page + 1 : 0;
 
       try {
         const payload: GetCardsPayload = {
@@ -73,24 +82,22 @@ export default function Home() {
 
         if (isMore) {
           setCards((prev) => [...prev, ...res.data]);
-          setPage(currentPage);
+          pageRef.current = currentPage;
         } else {
           setCards(res.data);
-          setPage(0);
+          pageRef.current = 0;
         }
 
-        // Each page has 20 cards usually. If we get less than 20, there are no more cards.
-        // Also check if total results is reached if available
-        setHasMore(res.data.length >= 20);
+        setHasMore(res.data.length >= PAGE_SIZE);
       } catch (err) {
         console.error("Failed to fetch cards:", err);
       } finally {
-        setIsLoading(false);
-        setIsFetchingMore(false);
+        // Reset only the flag that was set at the start
+        if (isMore) setIsFetchingMore(false);
+        else setIsLoading(false);
       }
     },
     [
-      page,
       searchQuery,
       selectedTypes,
       selectedRarities,
@@ -117,6 +124,7 @@ export default function Home() {
       loadCards(true);
     }
   }, [inView, hasMore, isLoading, isFetchingMore, loadCards]);
+
 
   // Load filters from sessionStorage on mount
   useEffect(() => {
@@ -168,7 +176,7 @@ export default function Home() {
     setSelectedColors([]);
     setSelectedSets([]);
     setShowAltArtsOnly(false);
-    setPage(0);
+    pageRef.current = 0;
     sessionStorage.removeItem(FILTERS_STORAGE_KEY);
   };
 
@@ -186,35 +194,17 @@ export default function Home() {
         <div className="sticky top-16 z-40 py-4 bg-obsidian/90 backdrop-blur-xl border-b border-white/5 -mx-5 md:-mx-10 px-5 md:px-10 mb-10">
           <FilterSystem
             searchQuery={searchQuery}
-            setSearchQuery={(q) => {
-              setSearchQuery(q);
-              setPage(0);
-            }}
+            setSearchQuery={setSearchQuery}
             selectedTypes={selectedTypes}
-            setSelectedTypes={(t) => {
-              setSelectedTypes(t);
-              setPage(0);
-            }}
+            setSelectedTypes={setSelectedTypes}
             selectedRarities={selectedRarities}
-            setSelectedRarities={(r) => {
-              setSelectedRarities(r);
-              setPage(0);
-            }}
+            setSelectedRarities={setSelectedRarities}
             selectedColors={selectedColors}
-            setSelectedColors={(c) => {
-              setSelectedColors(c);
-              setPage(0);
-            }}
+            setSelectedColors={setSelectedColors}
             selectedSets={selectedSets}
-            setSelectedSets={(s) => {
-              setSelectedSets(s);
-              setPage(0);
-            }}
+            setSelectedSets={setSelectedSets}
             showAltArtsOnly={showAltArtsOnly}
-            setShowAltArtsOnly={(b) => {
-              setShowAltArtsOnly(b);
-              setPage(0);
-            }}
+            setShowAltArtsOnly={setShowAltArtsOnly}
             onReset={resetFilters}
           />
         </div>
