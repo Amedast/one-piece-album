@@ -45,7 +45,7 @@ Ohara TCG es una aplicación web moderna diseñada para coleccionistas del juego
 - **Frontend**: React 19, Next.js 16 (App Router), TypeScript.
 - **Estilos y Animaciones**: Tailwind CSS v4, Framer Motion (para transiciones fluidas y animaciones interactivas), Lucide React (iconografía).
 - **Backend / API**: Next.js API Routes (Route Handlers).
-- **Base de Datos**: Supabase (PostgreSQL).
+- **Base de Datos**: PostgreSQL (alojado en Dokploy).
 - **Autenticación**: Better-Auth (con adaptador de base de datos `pg` nativo para PostgreSQL).
 
 ---
@@ -74,7 +74,7 @@ Ohara TCG es una aplicación web moderna diseñada para coleccionistas del juego
 │   ├── context/                # Contextos de React (AlbumContext para el estado global)
 │   ├── data/                   # Datos estáticos o mockups
 │   ├── hooks/                  # Hooks personalizados de React
-│   ├── lib/                    # Utilidades y configuración de clientes (Auth, Supabase, API)
+│   ├── lib/                    # Utilidades y configuración de clientes (Auth, DB, API)
 │   ├── types/                  # Definiciones de tipos de TypeScript
 │   └── tsconfig.json
 ├── package.json
@@ -85,7 +85,7 @@ Ohara TCG es una aplicación web moderna diseñada para coleccionistas del juego
 
 ## Base de Datos
 
-La persistencia de los álbumes, páginas y slots se gestiona mediante PostgreSQL (Supabase), mientras que la autenticación de usuarios y sus respectivas sesiones son administradas por Better-Auth.
+La persistencia de los álbumes, páginas y slots, así como la autenticación de usuarios y sus sesiones, se gestiona mediante una única instancia de PostgreSQL administrada con Better-Auth y un pool de conexiones `pg` nativo.
 
 ---
 
@@ -95,7 +95,7 @@ La persistencia de los álbumes, páginas y slots se gestiona mediante PostgreSQ
 
 - Node.js (versión 18 o superior recomendada)
 - npm, yarn, pnpm o bun
-- Una instancia de base de datos PostgreSQL (ej. Supabase)
+- Una instancia de base de datos PostgreSQL (ej. Dokploy, Railway, Neon...)
 
 ### Paso 1: Clonar el proyecto
 

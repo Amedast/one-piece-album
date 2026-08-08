@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import type { AlbumPage, AlbumSlot } from "@/types";
 
@@ -9,46 +9,56 @@ export async function GET(
   const { username } = await params;
 
   // Find user by username
-  const { data: user } = await supabase
-    .from("user")
-    .select("id, name, username, image")
-    .eq("username", username)
-    .single();
+  const userRes = await db.query<{
+    id: string;
+    name: string;
+    username: string;
+    image: string | null;
+  }>(
+    `SELECT id, name, username, image FROM "user" WHERE username = $1 LIMIT 1`,
+    [username]
+  );
+  const user = userRes.rows[0];
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   // Find their public album
-  const { data: albumRow } = await supabase
-    .from("albums")
-    .select("id, is_public")
-    .eq("user_id", user.id)
-    .single();
+  const albumRes = await db.query<{ id: string; is_public: boolean }>(
+    `SELECT id, is_public FROM albums WHERE user_id = $1 LIMIT 1`,
+    [user.id]
+  );
+  const albumRow = albumRes.rows[0];
 
   if (!albumRow || !albumRow.is_public) {
     return NextResponse.json({ error: "Album not found or private" }, { status: 404 });
   }
 
-  const { data: pages } = await supabase
-    .from("album_pages")
-    .select("id, page_id, title, position")
-    .eq("album_id", albumRow.id)
-    .order("position", { ascending: true });
+  const pagesRes = await db.query<{
+    id: string;
+    page_id: string;
+    title: string;
+    position: number;
+  }>(
+    `SELECT id, page_id, title, position FROM album_pages WHERE album_id = $1 ORDER BY position ASC`,
+    [albumRow.id]
+  );
+  const pages = pagesRes.rows;
 
-  const pageDbIds = (pages ?? []).map((p) => p.id);
-  const { data: slots } = pageDbIds.length
-    ? await supabase
-        .from("album_slots")
-        .select("*")
-        .in("page_db_id", pageDbIds)
-        .order("position", { ascending: true })
-    : { data: [] };
+  const pageDbIds = pages.map((p) => p.id);
+  const slotsRes = pageDbIds.length
+    ? await db.query(
+        `SELECT * FROM album_slots WHERE page_db_id = ANY($1) ORDER BY position ASC`,
+        [pageDbIds]
+      )
+    : { rows: [] };
+  const slots = slotsRes.rows;
 
-  const albumPages: AlbumPage[] = (pages ?? []).map((p) => ({
+  const albumPages: AlbumPage[] = pages.map((p) => ({
     pageId: p.page_id,
     title: p.title,
-    slots: (slots ?? [])
+    slots: slots
       .filter((s) => s.page_db_id === p.id)
       .map((s) => ({
         slotId: s.slot_id,
