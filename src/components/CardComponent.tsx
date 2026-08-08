@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, SlotState } from "@/types";
 import { twMerge } from "tailwind-merge";
 import { Star, Bookmark, Check } from "lucide-react";
+import { getCardImageUrl } from "@/lib/image-utils";
 
 interface CardComponentProps {
   card: Card;
@@ -51,12 +53,13 @@ export default function CardComponent({
   isAlbumView = false,
   onClick,
 }: CardComponentProps) {
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const isOwned = slotState === "OWNED";
   const isWishlist = slotState === "WISHLIST";
   const isEmpty = slotState === "EMPTY";
   const isRare =
     card.rarity === "SR" || card.rarity === "SEC" || card.rarity === "SP CARD";
-  const imgSrc = card.imageData || card.url;
+  const imgSrc = card.imageData || getCardImageUrl(card.url);
 
   return (
     <div className="relative group perspective-1000" onClick={onClick}>
@@ -74,10 +77,26 @@ export default function CardComponent({
           </div>
         ) : (
           <>
-            {/* Card image */}
+            {/* Card image with smooth fade-in */}
             <div
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              className={twMerge(
+                "absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-300",
+                isImageLoaded ? "opacity-100" : "opacity-0",
+              )}
               style={{ backgroundImage: `url(${imgSrc})` }}
+            />
+
+            {/* Shimmer loading overlay */}
+            {!isImageLoaded && (
+              <div className="absolute inset-0 skeleton-pulse animate-pulse" />
+            )}
+
+            {/* Hidden img to trigger onLoad event */}
+            <img
+              src={imgSrc}
+              alt=""
+              className="hidden"
+              onLoad={() => setIsImageLoaded(true)}
             />
 
             {/* Custom badge */}

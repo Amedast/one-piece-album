@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, WishlistUrl } from "@/types";
+import { getCardImageUrl } from "@/lib/image-utils";
 import {
   X,
   Shield,
@@ -81,6 +82,11 @@ export default function CardDetailsModal({
   const [viewMiniAlbum, setViewMiniAlbum] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
   const [showPageSelector, setShowPageSelector] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsImageLoaded(false);
+  }, [card?.id]);
 
   const handleToggleSlotState = (
     newState: "OWNED" | "WISHLIST",
@@ -112,7 +118,7 @@ export default function CardDetailsModal({
 
   const isRare =
     card.rarity === "SR" || card.rarity === "SEC" || card.rarity === "SP CARD";
-  const imgSrc = card.imageData || card.url;
+  const imgSrc = card.imageData || getCardImageUrl(card.url);
 
   // Check if card is already in album
   const existingSlots = album.pages.flatMap((p) =>
@@ -195,8 +201,20 @@ export default function CardDetailsModal({
                 style={{ transformStyle: "preserve-3d" }}
               >
                 <div
-                  className="absolute inset-0 bg-cover bg-center"
+                  className={twMerge(
+                    "absolute inset-0 bg-cover bg-center transition-opacity duration-300",
+                    isImageLoaded ? "opacity-100" : "opacity-0",
+                  )}
                   style={{ backgroundImage: `url(${imgSrc})` }}
+                />
+                {!isImageLoaded && (
+                  <div className="absolute inset-0 skeleton-pulse animate-pulse" />
+                )}
+                <img
+                  src={imgSrc}
+                  alt=""
+                  className="hidden"
+                  onLoad={() => setIsImageLoaded(true)}
                 />
                 {isRare && (
                   <div className="absolute inset-0 bg-linear-to-tr from-gold/10 via-transparent to-white/5 pointer-events-none mix-blend-overlay" />

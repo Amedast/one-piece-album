@@ -7,6 +7,7 @@ import { useAlbum } from "@/context/AlbumContext";
 import CardComponent from "@/components/CardComponent";
 import FilterSystem from "@/components/FilterSystem";
 import CardDetailsModal from "@/components/CardDetailsModal";
+import CardSkeleton from "@/components/CardSkeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Compass, Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
@@ -214,11 +215,7 @@ export default function Home() {
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-5 md:gap-6">
               {[...Array(32)].map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-63/88 rounded-xl bg-leather-light animate-pulse"
-                  style={{ animationDelay: `${i * 0.06}s` }}
-                />
+                <CardSkeleton key={i} />
               ))}
             </div>
           ) : cards.length > 0 ? (
@@ -246,11 +243,7 @@ export default function Home() {
                 {isFetchingMore && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-5 md:gap-6">
                     {[...Array(32)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="aspect-63/88 rounded-xl bg-leather-light animate-pulse"
-                        style={{ animationDelay: `${i * 0.06}s` }}
-                      />
+                      <CardSkeleton key={i} />
                     ))}
                   </div>
                 )}

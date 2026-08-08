@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlbumSlot, Card } from "@/types";
+import { getCardImageUrl } from "@/lib/image-utils";
 import { X, GripVertical, Link as LinkIcon, Plus } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
@@ -53,6 +54,7 @@ export default function AlbumSlotCard({
   onDragEnd,
 }: AlbumSlotCardProps) {
   const [hovered, setHovered] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const isEmpty = slot.state === "EMPTY";
   const isOwned = slot.state === "OWNED";
   const isWishlist = slot.state === "WISHLIST";
@@ -65,7 +67,7 @@ export default function AlbumSlotCard({
   const cardGlow = card ? rarityGlow[card.rarity] || "" : "";
   const hasWishlistUrls = slot.wishlistUrls && slot.wishlistUrls.length > 0;
 
-  const imgSrc = card?.imageData || card?.url || "";
+  const imgSrc = card?.imageData || getCardImageUrl(card?.url) || "";
 
   const handleCardClick = () => {
     if (!isReorganizeMode && card && !isEmpty) {
@@ -150,10 +152,31 @@ export default function AlbumSlotCard({
           )
         ) : (
           <>
-            {/* Card image */}
+            {/* Card image with smooth fade-in */}
             <div
-              className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${isWishlist ? "grayscale opacity-60" : ""}`}
+              className={twMerge(
+                "absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-300",
+                isWishlist ? "grayscale opacity-60" : "",
+                isImageLoaded
+                  ? isWishlist
+                    ? "opacity-60"
+                    : "opacity-100"
+                  : "opacity-0",
+              )}
               style={{ backgroundImage: `url(${imgSrc})` }}
+            />
+
+            {/* Shimmer loading overlay */}
+            {!isImageLoaded && (
+              <div className="absolute inset-0 skeleton-pulse animate-pulse" />
+            )}
+
+            {/* Hidden img to trigger onLoad event */}
+            <img
+              src={imgSrc}
+              alt=""
+              className="hidden"
+              onLoad={() => setIsImageLoaded(true)}
             />
 
             {/* Hover overlay for card details hint */}

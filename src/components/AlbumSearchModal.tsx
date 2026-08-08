@@ -6,6 +6,7 @@ import { Card, SlotState, SetData } from "@/types";
 import { useAlbum } from "@/context/AlbumContext";
 import { loadSets } from "@/lib/sets";
 import { motion, AnimatePresence } from "framer-motion";
+import CardSkeleton from "@/components/CardSkeleton";
 import {
   Search,
   X,
@@ -600,10 +601,7 @@ export default function AlbumSearchModal({
             {isLoading ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
                 {[...Array(12)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="aspect-63/88 rounded-xl bg-leather-light animate-pulse"
-                  />
+                  <CardSkeleton key={i} />
                 ))}
               </div>
             ) : displayCards.length > 0 ? (
