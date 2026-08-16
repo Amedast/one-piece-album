@@ -2,9 +2,13 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import type { Album, AlbumPage, AlbumSlot, AlbumSummary } from "@/types";
+import type { Album, AlbumPage, AlbumSlot, AlbumSummary, AlbumSize } from "@/types";
 
-const SLOTS_PER_PAGE = 12;
+function getSlotsCount(size?: AlbumSize): number {
+  if (size === "3x3") return 9;
+  if (size === "4x4") return 16;
+  return 12;
+}
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -13,9 +17,21 @@ function isValidUUID(val?: string | null): boolean {
   return typeof val === "string" && UUID_REGEX.test(val.trim());
 }
 
-function createEmptyPage(index: number): AlbumPage {
+let migrationRan = false;
+async function ensureSizeColumn() {
+  if (migrationRan) return;
+  try {
+    await db.query(`ALTER TABLE albums ADD COLUMN IF NOT EXISTS size VARCHAR(10) DEFAULT '4x3';`);
+    migrationRan = true;
+  } catch (e) {
+    console.error("Migration error for size column:", e);
+  }
+}
+
+function createEmptyPage(index: number, size: AlbumSize = "4x3"): AlbumPage {
   const pageId = `page-${Date.now()}-${index}`;
-  const slots: AlbumSlot[] = Array.from({ length: SLOTS_PER_PAGE }).map(
+  const count = getSlotsCount(size);
+  const slots: AlbumSlot[] = Array.from({ length: count }).map(
     (_, i) => ({
       slotId: `${pageId}-slot-${i}`,
       state: "EMPTY",
@@ -26,17 +42,19 @@ function createEmptyPage(index: number): AlbumPage {
 
 // ─── Helper: Get summaries of all albums for a user ─────────────────────────
 async function fetchUserAlbumsSummaries(userId: string): Promise<AlbumSummary[]> {
+  await ensureSizeColumn();
   const albumsRes = await db.query<{
     id: string;
     title: string;
     description: string | null;
+    size: AlbumSize | null;
     cover_url: string | null;
     is_public: boolean;
     is_default: boolean;
     created_at: string;
     updated_at: string;
   }>(
-    `SELECT id, title, description, cover_url, is_public, is_default, created_at, updated_at 
+    `SELECT id, title, description, size, cover_url, is_public, is_default, created_at, updated_at 
      FROM albums 
      WHERE user_id = $1 
      ORDER BY is_default DESC, updated_at DESC`,
@@ -77,6 +95,7 @@ async function fetchUserAlbumsSummaries(userId: string): Promise<AlbumSummary[]>
       id: album.id,
       title: album.title || "Mi Álbum",
       description: album.description ?? undefined,
+      size: (album.size as AlbumSize) || "4x3",
       coverUrl: album.cover_url ?? undefined,
       isPublic: album.is_public,
       isDefault: album.is_default,
@@ -94,10 +113,12 @@ async function fetchAlbumFromDB(
   userId: string,
   albumId?: string | null
 ): Promise<Album | null> {
+  await ensureSizeColumn();
   let albumRow: {
     id: string;
     title: string;
     description: string | null;
+    size: AlbumSize | null;
     cover_url: string | null;
     is_public: boolean;
     is_default: boolean;
@@ -108,11 +129,12 @@ async function fetchAlbumFromDB(
       id: string;
       title: string;
       description: string | null;
+      size: AlbumSize | null;
       cover_url: string | null;
       is_public: boolean;
       is_default: boolean;
     }>(
-      `SELECT id, title, description, cover_url, is_public, is_default 
+      `SELECT id, title, description, size, cover_url, is_public, is_default 
        FROM albums 
        WHERE id = $1 AND user_id = $2 
        LIMIT 1`,
@@ -127,11 +149,12 @@ async function fetchAlbumFromDB(
       id: string;
       title: string;
       description: string | null;
+      size: AlbumSize | null;
       cover_url: string | null;
       is_public: boolean;
       is_default: boolean;
     }>(
-      `SELECT id, title, description, cover_url, is_public, is_default 
+      `SELECT id, title, description, size, cover_url, is_public, is_default 
        FROM albums 
        WHERE user_id = $1 
        ORDER BY is_default DESC, updated_at DESC 
@@ -142,6 +165,8 @@ async function fetchAlbumFromDB(
   }
 
   if (!albumRow) return null;
+
+  const albumSize: AlbumSize = (albumRow.size as AlbumSize) || "4x3";
 
   const pagesRes = await db.query<{
     id: string;
@@ -162,6 +187,7 @@ async function fetchAlbumFromDB(
       id: albumRow.id,
       title: albumRow.title || "Mi Álbum",
       description: albumRow.description ?? undefined,
+      size: albumSize,
       coverUrl: albumRow.cover_url ?? undefined,
       pages: [],
       isPublic: albumRow.is_public,
@@ -195,6 +221,7 @@ async function fetchAlbumFromDB(
     id: albumRow.id,
     title: albumRow.title || "Mi Álbum",
     description: albumRow.description ?? undefined,
+    size: albumSize,
     coverUrl: albumRow.cover_url ?? undefined,
     pages: albumPages,
     isPublic: albumRow.is_public,
@@ -222,13 +249,13 @@ export async function GET(req: NextRequest) {
     try {
       await client.query("BEGIN");
       const newAlbumRes = await client.query<{ id: string }>(
-        `INSERT INTO albums (user_id, title, is_public, is_default, updated_at)
-         VALUES ($1, $2, $3, $4, NOW())
+        `INSERT INTO albums (user_id, title, size, is_public, is_default, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
          RETURNING id`,
-        [userId, "Mi Álbum", true, true]
+        [userId, "Mi Álbum", "4x3", true, true]
       );
       const newAlbumId = newAlbumRes.rows[0].id;
-      const initialPage = createEmptyPage(0);
+      const initialPage = createEmptyPage(0, "4x3");
 
       const pageRes = await client.query<{ id: string }>(
         `INSERT INTO album_pages (album_id, page_id, title, position) VALUES ($1, $2, $3, $4) RETURNING id`,
@@ -254,6 +281,7 @@ export async function GET(req: NextRequest) {
       album = {
         id: newAlbumId,
         title: "Mi Álbum",
+        size: "4x3",
         pages: [initialPage],
         isPublic: true,
         isDefault: true,
@@ -262,11 +290,12 @@ export async function GET(req: NextRequest) {
         {
           id: newAlbumId,
           title: "Mi Álbum",
+          size: "4x3",
           isPublic: true,
           isDefault: true,
           ownedCount: 0,
           wishlistCount: 0,
-          totalSlots: SLOTS_PER_PAGE,
+          totalSlots: 12,
         },
       ];
     } catch (e) {
@@ -287,8 +316,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await ensureSizeColumn();
   const { album }: { album: Album } = await req.json();
   const userId = session.user.id;
+  const albumSize: AlbumSize = album.size || "4x3";
   const client = await db.connect();
 
   try {
@@ -305,13 +336,14 @@ export async function POST(req: NextRequest) {
         albumDbId = existing.rows[0].id;
         await client.query(
           `UPDATE albums 
-           SET title = $1, description = $2, is_public = $3, cover_url = $4, updated_at = NOW() 
-           WHERE id = $5 AND user_id = $6`,
+           SET title = $1, description = $2, is_public = $3, cover_url = $4, size = $5, updated_at = NOW() 
+           WHERE id = $6 AND user_id = $7`,
           [
             album.title || "Mi Álbum",
             album.description ?? "",
             album.isPublic ?? true,
             album.coverUrl ?? null,
+            albumSize,
             albumDbId,
             userId,
           ]
@@ -322,13 +354,14 @@ export async function POST(req: NextRequest) {
     if (!albumDbId) {
       // Create new album record
       const albumRes = await client.query<{ id: string }>(
-        `INSERT INTO albums (user_id, title, description, cover_url, is_public, is_default, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        `INSERT INTO albums (user_id, title, description, size, cover_url, is_public, is_default, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
          RETURNING id`,
         [
           userId,
           album.title || "Mi Álbum",
           album.description ?? "",
+          albumSize,
           album.coverUrl ?? null,
           album.isPublic ?? true,
           album.isDefault ?? false,
@@ -393,6 +426,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await ensureSizeColumn();
   const {
     albumId,
     title,

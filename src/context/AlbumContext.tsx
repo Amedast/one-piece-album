@@ -13,11 +13,23 @@ import {
   AlbumPage,
   AlbumSlot,
   AlbumSummary,
+  AlbumSize,
   Card,
   SlotState,
   WishlistUrl,
 } from "@/types";
 import { useSession } from "@/lib/auth-client";
+
+export const getSlotsCount = (size?: AlbumSize): number => {
+  if (size === "3x3") return 9;
+  if (size === "4x4") return 16;
+  return 12; // default 4x3
+};
+
+export const getGridCols = (size?: AlbumSize): string => {
+  if (size === "3x3") return "grid-cols-3";
+  return "grid-cols-4"; // 4x3 and 4x4
+};
 
 interface AlbumContextType {
   album: Album;
@@ -31,7 +43,8 @@ interface AlbumContextType {
   createAlbum: (
     title: string,
     description?: string,
-    isPublic?: boolean
+    isPublic?: boolean,
+    size?: AlbumSize
   ) => Promise<string | null>;
   updateAlbumDetails: (
     albumId: string,
@@ -85,11 +98,10 @@ interface AlbumContextType {
 
 const AlbumContext = createContext<AlbumContextType | undefined>(undefined);
 
-const SLOTS_PER_PAGE = 12;
-
-const createEmptyPage = (index: number): AlbumPage => {
+const createEmptyPage = (index: number, size: AlbumSize = "4x3"): AlbumPage => {
   const pageId = `page-${Date.now()}-${index}`;
-  const slots: AlbumSlot[] = Array.from({ length: SLOTS_PER_PAGE }).map(
+  const slotsCount = getSlotsCount(size);
+  const slots: AlbumSlot[] = Array.from({ length: slotsCount }).map(
     (_, i) => ({
       slotId: `${pageId}-slot-${i}`,
       state: "EMPTY" as SlotState,
@@ -100,7 +112,8 @@ const createEmptyPage = (index: number): AlbumPage => {
 
 const EMPTY_ALBUM: Album = {
   id: "local",
-  title: "Mi Álbum",
+  title: "Mi Colección",
+  size: "4x3",
   pages: [],
   isPublic: true,
   isDefault: true,
@@ -119,15 +132,16 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const normalizeAlbumPages = (rawPages: AlbumPage[]): AlbumPage[] => {
+  const normalizeAlbumPages = (rawPages: AlbumPage[], size: AlbumSize = "4x3"): AlbumPage[] => {
+    const slotsCount = getSlotsCount(size);
     return rawPages.map((p: AlbumPage) => {
       const slots =
-        p.slots.length >= SLOTS_PER_PAGE
-          ? p.slots
+        p.slots.length >= slotsCount
+          ? p.slots.slice(0, slotsCount)
           : [
               ...p.slots,
               ...Array.from({
-                length: SLOTS_PER_PAGE - p.slots.length,
+                length: slotsCount - p.slots.length,
               }).map((_, i) => ({
                 slotId: `${p.pageId}-slot-fill-${i}`,
                 state: "EMPTY" as SlotState,
@@ -140,16 +154,17 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
   // ─── Load album when user logs in or mounts ──────────────────────────────
   const loadUserAlbums = useCallback(async (requestedAlbumId?: string) => {
     if (!user) {
-      setAlbum({ ...EMPTY_ALBUM, pages: [createEmptyPage(0)] });
+      setAlbum({ ...EMPTY_ALBUM, pages: [createEmptyPage(0, "4x3")] });
       setAlbums([
         {
           id: "local",
-          title: "Mi Álbum",
+          title: "Mi Colección",
+          size: "4x3",
           isPublic: true,
           isDefault: true,
           ownedCount: 0,
           wishlistCount: 0,
-          totalSlots: SLOTS_PER_PAGE,
+          totalSlots: 12,
         },
       ]);
       setCustomCards([]);
@@ -166,18 +181,21 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
 
       if (data.album && data.album.pages) {
+        const albumSize: AlbumSize = data.album.size || "4x3";
         const normalized: Album = {
           ...data.album,
-          title: data.album.title || "Mi Álbum",
-          pages: normalizeAlbumPages(data.album.pages),
+          title: data.album.title || "Mi Colección",
+          size: albumSize,
+          pages: normalizeAlbumPages(data.album.pages, albumSize),
         };
         setAlbum(normalized);
         setIsPublic(data.album.isPublic ?? true);
       } else {
         const defaultAlbum: Album = {
           id: "new",
-          title: "Mi Álbum",
-          pages: [createEmptyPage(0)],
+          title: "Mi Colección",
+          size: "4x3",
+          pages: [createEmptyPage(0, "4x3")],
           isPublic: true,
           isDefault: true,
         };
@@ -217,7 +235,8 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
   const createAlbum = async (
     title: string,
     description: string = "",
-    isPublicOption: boolean = true
+    isPublicOption: boolean = true,
+    sizeOption: AlbumSize = "4x3"
   ): Promise<string | null> => {
     if (!user) {
       // Local fallback for guest
@@ -226,7 +245,8 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
         id: newId,
         title: title || "Nuevo Álbum",
         description,
-        pages: [createEmptyPage(0)],
+        size: sizeOption,
+        pages: [createEmptyPage(0, sizeOption)],
         isPublic: isPublicOption,
         isDefault: false,
       };
@@ -237,10 +257,11 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
           id: newId,
           title: newAlbum.title,
           description,
+          size: sizeOption,
           isPublic: isPublicOption,
           ownedCount: 0,
           wishlistCount: 0,
-          totalSlots: SLOTS_PER_PAGE,
+          totalSlots: getSlotsCount(sizeOption),
         },
       ]);
       return newId;
@@ -253,6 +274,7 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           title,
           description,
+          size: sizeOption,
           isPublic: isPublicOption,
         }),
       });
@@ -261,9 +283,11 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
 
       if (data.album) {
+        const albumSize: AlbumSize = data.album.size || sizeOption || "4x3";
         const created: Album = {
           ...data.album,
-          pages: normalizeAlbumPages(data.album.pages),
+          size: albumSize,
+          pages: normalizeAlbumPages(data.album.pages, albumSize),
         };
         setAlbum(created);
         setIsPublic(created.isPublic ?? true);
@@ -274,11 +298,12 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
             id: created.id,
             title: created.title,
             description: created.description,
+            size: albumSize,
             isPublic: created.isPublic ?? true,
             isDefault: created.isDefault ?? false,
             ownedCount: 0,
             wishlistCount: 0,
-            totalSlots: SLOTS_PER_PAGE,
+            totalSlots: getSlotsCount(albumSize),
             updatedAt: new Date().toISOString(),
           },
           ...prev,
@@ -463,7 +488,7 @@ export function AlbumProvider({ children }: { children: React.ReactNode }) {
   const addPage = (atIndex?: number) => {
     setAlbum((prev) => {
       const newPages = [...prev.pages];
-      const newPage = createEmptyPage(prev.pages.length);
+      const newPage = createEmptyPage(prev.pages.length, prev.size || "4x3");
       if (atIndex !== undefined && atIndex >= 0 && atIndex <= newPages.length) {
         newPages.splice(atIndex, 0, newPage);
       } else {

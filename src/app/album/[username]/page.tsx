@@ -291,6 +291,7 @@ function PublicAlbumContent({
               <AlbumPagePanel
                 page={leftPage}
                 pageNumber={currentPageIndex}
+                size={album.size}
                 readOnly
                 variant="tall"
                 onOpenWishlistUrls={(pageId, slot) => setWishlistCtx({ pageId, slot })}
@@ -314,6 +315,7 @@ function PublicAlbumContent({
               <AlbumPagePanel
                 page={rightPage}
                 pageNumber={currentPageIndex + 1}
+                size={album.size}
                 readOnly
                 variant="tall"
                 onOpenWishlistUrls={(pageId, slot) => setWishlistCtx({ pageId, slot })}

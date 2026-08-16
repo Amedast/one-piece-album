@@ -57,8 +57,8 @@ export default function Navbar() {
               label="Database"
             />
             <NavLink
-              href="/album"
-              active={pathname === "/album"}
+              href="/collection"
+              active={pathname === "/collection"}
               icon={<BookOpen size={15} />}
               label="Mi Colección"
             />

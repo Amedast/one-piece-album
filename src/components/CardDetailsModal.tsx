@@ -311,7 +311,7 @@ export default function CardDetailsModal({
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className={`grid ${page.slots.length === 9 ? "grid-cols-3" : "grid-cols-4"} gap-2`}>
                           {page.slots.map((slot, index) => {
                             const isSelected =
                               placementType === "CONCRETE" &&

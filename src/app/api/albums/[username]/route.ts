@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
-import type { Album, AlbumPage, AlbumSlot, AlbumSummary } from "@/types";
+import type { Album, AlbumPage, AlbumSlot, AlbumSummary, AlbumSize } from "@/types";
 
 export async function GET(
   req: NextRequest,
@@ -31,13 +31,14 @@ export async function GET(
     id: string;
     title: string;
     description: string | null;
+    size: AlbumSize | null;
     cover_url: string | null;
     is_public: boolean;
     is_default: boolean;
     created_at: string;
     updated_at: string;
   }>(
-    `SELECT id, title, description, cover_url, is_public, is_default, created_at, updated_at 
+    `SELECT id, title, description, size, cover_url, is_public, is_default, created_at, updated_at 
      FROM albums 
      WHERE user_id = $1 AND is_public = TRUE 
      ORDER BY is_default DESC, updated_at DESC`,
@@ -77,6 +78,7 @@ export async function GET(
       id: a.id,
       title: a.title || "Mi Álbum",
       description: a.description ?? undefined,
+      size: (a.size as AlbumSize) || "4x3",
       coverUrl: a.cover_url ?? undefined,
       isPublic: a.is_public,
       isDefault: a.is_default,
@@ -140,6 +142,7 @@ export async function GET(
     id: targetAlbumRow.id,
     title: targetAlbumRow.title || "Mi Álbum",
     description: targetAlbumRow.description ?? undefined,
+    size: (targetAlbumRow.size as AlbumSize) || "4x3",
     coverUrl: targetAlbumRow.cover_url ?? undefined,
     pages: albumPages,
     isPublic: targetAlbumRow.is_public,
@@ -157,3 +160,4 @@ export async function GET(
     album: fullAlbum,
   });
 }
+

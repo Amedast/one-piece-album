@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, BookPlus, Globe, Lock, Loader2 } from "lucide-react";
+import { X, BookPlus, Globe, Lock, Loader2, LayoutGrid } from "lucide-react";
 import { useAlbum } from "@/context/AlbumContext";
 import { useSession } from "@/lib/auth-client";
+import type { AlbumSize } from "@/types";
 
 interface CreateAlbumModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export default function CreateAlbumModal({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [size, setSize] = useState<AlbumSize>("4x3");
   const [isPublic, setIsPublic] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +43,11 @@ export default function CreateAlbumModal({
     setError(null);
 
     try {
-      const albumId = await createAlbum(title.trim(), description.trim(), isPublic);
+      const albumId = await createAlbum(title.trim(), description.trim(), isPublic, size);
       if (albumId) {
         setTitle("");
         setDescription("");
+        setSize("4x3");
         setIsPublic(true);
         onClose();
       } else {
@@ -141,6 +144,38 @@ export default function CreateAlbumModal({
                 maxLength={200}
                 className="w-full bg-obsidian border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-gold/60 focus:ring-1 focus:ring-gold/30 transition-all resize-none font-medium"
               />
+            </div>
+
+            {/* Grid Size selector */}
+            <div>
+              <label className="block text-[11px] font-black uppercase tracking-wider text-zinc-300 mb-2">
+                Tamaño de Página
+              </label>
+              <div className="grid grid-cols-3 gap-2.5">
+                {[
+                  { id: "3x3" as AlbumSize, label: "3x3", count: "9 cartas", subtitle: "3 col × 3 filas" },
+                  { id: "4x3" as AlbumSize, label: "4x3", count: "12 cartas", subtitle: "4 col × 3 filas (Estándar)" },
+                  { id: "4x4" as AlbumSize, label: "4x4", count: "16 cartas", subtitle: "4 col × 4 filas" },
+                ].map((opt) => {
+                  const selected = size === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setSize(opt.id)}
+                      className={`cursor-pointer flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all active:scale-[0.98] ${
+                        selected
+                          ? "bg-gold/10 border-gold/40 text-gold ring-1 ring-gold/20"
+                          : "bg-leather-light border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                      }`}
+                    >
+                      <span className="font-cinzel text-sm font-black text-white">{opt.label}</span>
+                      <span className="text-[11px] font-bold mt-0.5 text-zinc-300">{opt.count}</span>
+                      <span className="text-[9px] text-zinc-500 font-crimson mt-0.5">{opt.subtitle}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Visibility toggle */}

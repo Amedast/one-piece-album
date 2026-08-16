@@ -26,7 +26,7 @@ export default function AlbumSettingsModal({
 }: AlbumSettingsModalProps) {
   const { album, albums, updateAlbumDetails, deleteAlbum } = useAlbum();
 
-  const [title, setTitle] = useState(album.title || "Mi Álbum");
+  const [title, setTitle] = useState(album.title || "Mi Colección");
   const [description, setDescription] = useState(album.description || "");
   const [isPublic, setIsPublic] = useState(album.isPublic ?? true);
   const [isDefault, setIsDefault] = useState(album.isDefault ?? false);
@@ -37,7 +37,7 @@ export default function AlbumSettingsModal({
 
   useEffect(() => {
     if (isOpen) {
-      setTitle(album.title || "Mi Álbum");
+      setTitle(album.title || "Mi Colección");
       setDescription(album.description || "");
       setIsPublic(album.isPublic ?? true);
       setIsDefault(album.isDefault ?? false);

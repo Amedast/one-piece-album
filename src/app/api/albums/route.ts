@@ -2,13 +2,29 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import type { Album, AlbumPage, AlbumSlot } from "@/types";
+import type { Album, AlbumPage, AlbumSlot, AlbumSize } from "@/types";
 
-const SLOTS_PER_PAGE = 12;
+function getSlotsCount(size?: AlbumSize): number {
+  if (size === "3x3") return 9;
+  if (size === "4x4") return 16;
+  return 12;
+}
 
-function createEmptyPage(index: number): AlbumPage {
+let migrationRan = false;
+async function ensureSizeColumn() {
+  if (migrationRan) return;
+  try {
+    await db.query(`ALTER TABLE albums ADD COLUMN IF NOT EXISTS size VARCHAR(10) DEFAULT '4x3';`);
+    migrationRan = true;
+  } catch (e) {
+    console.error("Migration error for size column in albums route:", e);
+  }
+}
+
+function createEmptyPage(index: number, size: AlbumSize = "4x3"): AlbumPage {
   const pageId = `page-${Date.now()}-${index}`;
-  const slots: AlbumSlot[] = Array.from({ length: SLOTS_PER_PAGE }).map(
+  const count = getSlotsCount(size);
+  const slots: AlbumSlot[] = Array.from({ length: count }).map(
     (_, i) => ({
       slotId: `${pageId}-slot-${i}`,
       state: "EMPTY",
@@ -19,16 +35,18 @@ function createEmptyPage(index: number): AlbumPage {
 
 // ─── GET /api/albums (Explore public albums) ─────────────────────────────────
 export async function GET() {
+  await ensureSizeColumn();
   const albumsRes = await db.query<{
     id: string;
     title: string;
     description: string | null;
+    size: AlbumSize | null;
     cover_url: string | null;
     is_public: boolean;
     updated_at: string;
     user_id: string;
   }>(
-    `SELECT id, title, description, cover_url, is_public, updated_at, user_id 
+    `SELECT id, title, description, size, cover_url, is_public, updated_at, user_id 
      FROM albums 
      WHERE is_public = TRUE 
      ORDER BY updated_at DESC`
@@ -92,6 +110,7 @@ export async function GET() {
         albumId: album.id,
         title: album.title || "Mi Álbum",
         description: album.description ?? "",
+        size: (album.size as AlbumSize) || "4x3",
         coverUrl: album.cover_url ?? null,
         userId: user.id,
         name: user.name,
@@ -119,17 +138,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await ensureSizeColumn();
   const {
     title,
     description = "",
+    size = "4x3",
     isPublic = true,
   }: {
     title?: string;
     description?: string;
+    size?: AlbumSize;
     isPublic?: boolean;
   } = await req.json();
 
   const albumTitle = title?.trim() || "Nuevo Álbum";
+  const albumSize: AlbumSize = size || "4x3";
   const userId = session.user.id;
   const client = await db.connect();
 
@@ -138,15 +161,15 @@ export async function POST(req: NextRequest) {
 
     // Insert new album
     const newAlbumRes = await client.query<{ id: string }>(
-      `INSERT INTO albums (user_id, title, description, is_public, is_default, updated_at)
-       VALUES ($1, $2, $3, $4, FALSE, NOW())
+      `INSERT INTO albums (user_id, title, description, size, is_public, is_default, updated_at)
+       VALUES ($1, $2, $3, $4, $5, FALSE, NOW())
        RETURNING id`,
-      [userId, albumTitle, description, isPublic]
+      [userId, albumTitle, description, albumSize, isPublic]
     );
     const newAlbumId = newAlbumRes.rows[0].id;
 
-    // Create 1 initial empty page
-    const initialPage = createEmptyPage(0);
+    // Create 1 initial empty page with matching size
+    const initialPage = createEmptyPage(0, albumSize);
     const pageRes = await client.query<{ id: string }>(
       `INSERT INTO album_pages (album_id, page_id, title, position) VALUES ($1, $2, $3, $4) RETURNING id`,
       [newAlbumId, initialPage.pageId, initialPage.title, 0]
@@ -172,6 +195,7 @@ export async function POST(req: NextRequest) {
       id: newAlbumId,
       title: albumTitle,
       description,
+      size: albumSize,
       pages: [initialPage],
       isPublic,
       isDefault: false,
@@ -186,3 +210,4 @@ export async function POST(req: NextRequest) {
     client.release();
   }
 }
+

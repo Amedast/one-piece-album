@@ -1,11 +1,12 @@
-﻿"use client";
+"use client";
 
 import AlbumSlotCard from "@/components/album/AlbumSlotCard";
-import type { AlbumPage, AlbumSlot, Card, WishlistUrl } from "@/types";
+import type { AlbumPage, AlbumSlot, Card, WishlistUrl, AlbumSize } from "@/types";
 
 interface AlbumPagePanelProps {
   page: AlbumPage;
   pageNumber: number;
+  size?: AlbumSize;
   readOnly?: boolean;
   isReorganizeMode?: boolean;
   dragSource?: { pageId: string; slotId: string } | null;
@@ -31,6 +32,7 @@ interface AlbumPagePanelProps {
 export default function AlbumPagePanel({
   page,
   pageNumber,
+  size,
   readOnly = false,
   isReorganizeMode = false,
   dragSource = null,
@@ -45,10 +47,25 @@ export default function AlbumPagePanel({
   onDragEnd,
   variant = "compact",
 }: AlbumPagePanelProps) {
+  const effectiveSize: AlbumSize =
+    size || (page.slots.length === 9 ? "3x3" : page.slots.length === 16 ? "4x4" : "4x3");
+  const gridColsClass = effectiveSize === "3x3" ? "grid-cols-3" : "grid-cols-4";
+
   const minH =
-    variant === "tall" ? "min-h-160 lg:min-h-175" : "min-h-[480px] lg:min-h-[700px]";
+    variant === "tall"
+      ? "min-h-160 lg:min-h-175"
+      : effectiveSize === "4x4"
+      ? "min-h-[560px] lg:min-h-[820px]"
+      : "min-h-[480px] lg:min-h-[700px]";
+
   const gridGap =
-    variant === "tall" ? "gap-4 p-8" : "gap-1.5 sm:gap-4 p-3 sm:p-8";
+    variant === "tall"
+      ? effectiveSize === "3x3"
+        ? "gap-5 p-8"
+        : "gap-4 p-8"
+      : effectiveSize === "3x3"
+      ? "gap-2.5 sm:gap-6 p-4 sm:p-8"
+      : "gap-1.5 sm:gap-4 p-3 sm:p-8";
 
   return (
     <div className={`flex-1 bg-leather ${minH}`}>
@@ -62,7 +79,7 @@ export default function AlbumPagePanel({
         <span className="font-mono text-[10px] text-zinc-700">{pageNumber}</span>
       </div>
 
-      <div className={`grid grid-cols-4 ${gridGap}`}>
+      <div className={`grid ${gridColsClass} ${gridGap}`}>
         {page.slots.map((slot, index) => (
           <AlbumSlotCard
             key={slot.slotId}
