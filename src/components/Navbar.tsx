@@ -60,7 +60,7 @@ export default function Navbar() {
               href="/album"
               active={pathname === "/album"}
               icon={<BookOpen size={15} />}
-              label="Mi Álbum"
+              label="Mi Colección"
             />
             <NavLink
               href="/albums"

@@ -116,15 +116,15 @@ export default function AlbumHeader({
         <div className="relative z-30" ref={dropdownRef}>
           <button
             onClick={() => setShowAlbumDropdown(!showAlbumDropdown)}
-            className="cursor-pointer flex items-center gap-3 px-2.5 py-2.5 rounded-2xl bg-leather-light border border-white/10 hover:border-gold/30 hover:bg-leather-light/80 transition-all text-left group active:scale-[0.98]"
+            className="cursor-pointer flex items-center gap-3 px-1.5 py-1.5 rounded-xl bg-leather-light border border-white/10 hover:border-gold/30 hover:bg-leather-light/80 transition-all text-left group active:scale-[0.98]"
             title="Cambiar de álbum"
           >
-            <div className="w-8 h-8 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0">
               <BookOpen size={16} className="text-gold" />
             </div>
             <div className="flex items-center gap-2 min-w-0 pr-1">
               <h1 className="font-cinzel text-base sm:text-lg font-bold text-white leading-tight truncate max-w-[200px] sm:max-w-[280px]">
-                {album.title || "Mi Álbum"}
+                {album.title || "Mi Colección"}
               </h1>
               <ChevronDown
                 size={16}
@@ -172,20 +172,32 @@ export default function AlbumHeader({
                               {item.title}
                             </span>
                             {item.isDefault && (
-                              <Star size={12} className="text-gold fill-gold shrink-0" />
+                              <Star
+                                size={12}
+                                className="text-gold fill-gold shrink-0"
+                              />
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-[11px] text-zinc-400 mt-0.5 font-crimson">
                             <span>{item.ownedCount ?? 0} cartas</span>
                             <span>·</span>
-                            <span className={item.isPublic ? "text-emerald-400/90" : "text-zinc-500"}>
+                            <span
+                              className={
+                                item.isPublic
+                                  ? "text-emerald-400/90"
+                                  : "text-zinc-500"
+                              }
+                            >
                               {item.isPublic ? "Público" : "Privado"}
                             </span>
                           </div>
                         </div>
 
                         {isActive && (
-                          <Check size={16} className="text-gold shrink-0 ml-2" />
+                          <Check
+                            size={16}
+                            className="text-gold shrink-0 ml-2"
+                          />
                         )}
                       </button>
                     );
@@ -252,7 +264,7 @@ export default function AlbumHeader({
               "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 cursor-pointer",
               isSaving
                 ? "bg-blue-500/10 border-blue-500/20 text-blue-300 opacity-70"
-                : "bg-blue-500/20 text-blue-400 border-blue-500/50 hover:bg-blue-500/30"
+                : "bg-blue-500/20 text-blue-400 border-blue-500/50 hover:bg-blue-500/30",
             )}
           >
             {isSaving ? (
@@ -273,7 +285,7 @@ export default function AlbumHeader({
               "cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200",
               isReorganizeMode
                 ? "bg-gold text-obsidian border-gold shadow-lg shadow-gold/20"
-                : "bg-leather-light border-white/10 text-zinc-300 hover:border-gold/40 hover:text-gold"
+                : "bg-leather-light border-white/10 text-zinc-300 hover:border-gold/40 hover:text-gold",
             )}
           >
             {isReorganizeMode ? (
@@ -294,9 +306,7 @@ export default function AlbumHeader({
             title="Añadir página"
           >
             <Plus size={16} />
-            <span className="text-xs font-medium hidden sm:inline">
-              Página
-            </span>
+            <span className="text-xs font-medium hidden sm:inline">Página</span>
           </motion.button>
 
           {/* Custom card */}
@@ -307,9 +317,7 @@ export default function AlbumHeader({
             title="Crear carta personalizada"
           >
             <Wand2 size={16} />
-            <span className="text-xs font-medium hidden sm:inline">
-              Custom
-            </span>
+            <span className="text-xs font-medium hidden sm:inline">Custom</span>
           </motion.button>
 
           {/* Visibility toggle */}
@@ -320,7 +328,7 @@ export default function AlbumHeader({
               "cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200",
               isPublic
                 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
-                : "bg-leather-light border-white/10 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+                : "bg-leather-light border-white/10 text-zinc-500 hover:border-white/20 hover:text-zinc-300",
             )}
             title={isPublic ? "Tu álbum es público" : "Tu álbum es privado"}
           >
@@ -360,9 +368,7 @@ export default function AlbumHeader({
             size={18}
             className="group-hover:-translate-x-0.5 transition-transform"
           />
-          <span className="text-xs font-medium hidden sm:inline">
-            Anterior
-          </span>
+          <span className="text-xs font-medium hidden sm:inline">Anterior</span>
         </button>
 
         <div className="md:block hidden">
@@ -379,7 +385,7 @@ export default function AlbumHeader({
                     "h-1.5 rounded-full transition-all duration-300",
                     i === currentSpread - 1
                       ? "w-6 bg-gold"
-                      : "w-1.5 bg-zinc-700 hover:bg-zinc-500 cursor-pointer"
+                      : "w-1.5 bg-zinc-700 hover:bg-zinc-500 cursor-pointer",
                   )}
                 />
               ))}

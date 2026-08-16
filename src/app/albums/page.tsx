@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Users, BookOpen, Heart, Loader2, Search, Sparkles } from "lucide-react";
+import { Users, BookOpen, Heart, Loader2, Search } from "lucide-react";
 
 type PublicAlbumItem = {
   albumId: string;
@@ -46,10 +46,6 @@ export default function CollectorsPage() {
       <div className="max-w-[1400px] mx-auto px-5 md:px-10">
         {/* Header */}
         <div className="pt-10 pb-12">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gold/10 border border-gold/25 text-gold text-xs font-bold uppercase tracking-wider mb-4">
-            <Sparkles size={13} />
-            <span>Colecciones de la Comunidad</span>
-          </div>
           <h1 className="font-cinzel text-5xl md:text-6xl lg:text-[3.75rem] font-black text-white leading-none mb-3">
             Nakama <span className="text-gold">Collectors</span>
           </h1>
