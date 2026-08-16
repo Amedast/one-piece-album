@@ -2,15 +2,145 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import type { Album, AlbumPage, AlbumSlot } from "@/types";
+import type { Album, AlbumPage, AlbumSlot, AlbumSummary } from "@/types";
 
-// ─── Helper: get the full album from DB ─────────────────────────────────────
-async function fetchAlbumFromDB(userId: string): Promise<Album | null> {
-  const albumRes = await db.query<{ id: string; is_public: boolean }>(
-    `SELECT id, is_public FROM albums WHERE user_id = $1 LIMIT 1`,
+const SLOTS_PER_PAGE = 12;
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUUID(val?: string | null): boolean {
+  return typeof val === "string" && UUID_REGEX.test(val.trim());
+}
+
+function createEmptyPage(index: number): AlbumPage {
+  const pageId = `page-${Date.now()}-${index}`;
+  const slots: AlbumSlot[] = Array.from({ length: SLOTS_PER_PAGE }).map(
+    (_, i) => ({
+      slotId: `${pageId}-slot-${i}`,
+      state: "EMPTY",
+    })
+  );
+  return { pageId, title: `Page ${index + 1}`, slots };
+}
+
+// ─── Helper: Get summaries of all albums for a user ─────────────────────────
+async function fetchUserAlbumsSummaries(userId: string): Promise<AlbumSummary[]> {
+  const albumsRes = await db.query<{
+    id: string;
+    title: string;
+    description: string | null;
+    cover_url: string | null;
+    is_public: boolean;
+    is_default: boolean;
+    created_at: string;
+    updated_at: string;
+  }>(
+    `SELECT id, title, description, cover_url, is_public, is_default, created_at, updated_at 
+     FROM albums 
+     WHERE user_id = $1 
+     ORDER BY is_default DESC, updated_at DESC`,
     [userId]
   );
-  const albumRow = albumRes.rows[0];
+
+  const albumRows = albumsRes.rows;
+  if (albumRows.length === 0) return [];
+
+  const albumIds = albumRows.map((a) => a.id);
+
+  const pagesRes = await db.query<{ id: string; album_id: string }>(
+    `SELECT id, album_id FROM album_pages WHERE album_id = ANY($1)`,
+    [albumIds]
+  );
+  const pages = pagesRes.rows;
+
+  const pageDbIds = pages.map((p) => p.id);
+  const slotsRes = pageDbIds.length
+    ? await db.query<{ page_db_id: string; state: string }>(
+        `SELECT page_db_id, state FROM album_slots WHERE page_db_id = ANY($1)`,
+        [pageDbIds]
+      )
+    : { rows: [] };
+  const slots = slotsRes.rows;
+
+  return albumRows.map((album) => {
+    const albumPageIds = pages
+      .filter((p) => p.album_id === album.id)
+      .map((p) => p.id);
+
+    const albumSlots = slots.filter((s) => albumPageIds.includes(s.page_db_id));
+    const ownedCount = albumSlots.filter((s) => s.state === "OWNED").length;
+    const wishlistCount = albumSlots.filter((s) => s.state === "WISHLIST").length;
+    const totalSlots = albumSlots.length;
+
+    return {
+      id: album.id,
+      title: album.title || "Mi Álbum",
+      description: album.description ?? undefined,
+      coverUrl: album.cover_url ?? undefined,
+      isPublic: album.is_public,
+      isDefault: album.is_default,
+      ownedCount,
+      wishlistCount,
+      totalSlots,
+      createdAt: album.created_at,
+      updatedAt: album.updated_at,
+    };
+  });
+}
+
+// ─── Helper: Get a full album by ID or default for user ─────────────────────
+async function fetchAlbumFromDB(
+  userId: string,
+  albumId?: string | null
+): Promise<Album | null> {
+  let albumRow: {
+    id: string;
+    title: string;
+    description: string | null;
+    cover_url: string | null;
+    is_public: boolean;
+    is_default: boolean;
+  } | null = null;
+
+  if (isValidUUID(albumId)) {
+    const albumRes = await db.query<{
+      id: string;
+      title: string;
+      description: string | null;
+      cover_url: string | null;
+      is_public: boolean;
+      is_default: boolean;
+    }>(
+      `SELECT id, title, description, cover_url, is_public, is_default 
+       FROM albums 
+       WHERE id = $1 AND user_id = $2 
+       LIMIT 1`,
+      [albumId, userId]
+    );
+    albumRow = albumRes.rows[0] ?? null;
+  }
+
+  // Fallback to default or most recent
+  if (!albumRow) {
+    const albumRes = await db.query<{
+      id: string;
+      title: string;
+      description: string | null;
+      cover_url: string | null;
+      is_public: boolean;
+      is_default: boolean;
+    }>(
+      `SELECT id, title, description, cover_url, is_public, is_default 
+       FROM albums 
+       WHERE user_id = $1 
+       ORDER BY is_default DESC, updated_at DESC 
+       LIMIT 1`,
+      [userId]
+    );
+    albumRow = albumRes.rows[0] ?? null;
+  }
+
   if (!albumRow) return null;
 
   const pagesRes = await db.query<{
@@ -19,13 +149,24 @@ async function fetchAlbumFromDB(userId: string): Promise<Album | null> {
     title: string;
     position: number;
   }>(
-    `SELECT id, page_id, title, position FROM album_pages WHERE album_id = $1 ORDER BY position ASC`,
+    `SELECT id, page_id, title, position 
+     FROM album_pages 
+     WHERE album_id = $1 
+     ORDER BY position ASC`,
     [albumRow.id]
   );
   const pages = pagesRes.rows;
 
   if (pages.length === 0) {
-    return { id: albumRow.id, pages: [], isPublic: albumRow.is_public };
+    return {
+      id: albumRow.id,
+      title: albumRow.title || "Mi Álbum",
+      description: albumRow.description ?? undefined,
+      coverUrl: albumRow.cover_url ?? undefined,
+      pages: [],
+      isPublic: albumRow.is_public,
+      isDefault: albumRow.is_default,
+    };
   }
 
   const pageDbIds = pages.map((p) => p.id);
@@ -50,21 +191,96 @@ async function fetchAlbumFromDB(userId: string): Promise<Album | null> {
       })) as AlbumSlot[],
   }));
 
-  return { id: albumRow.id, pages: albumPages, isPublic: albumRow.is_public };
+  return {
+    id: albumRow.id,
+    title: albumRow.title || "Mi Álbum",
+    description: albumRow.description ?? undefined,
+    coverUrl: albumRow.cover_url ?? undefined,
+    pages: albumPages,
+    isPublic: albumRow.is_public,
+    isDefault: albumRow.is_default,
+  };
 }
 
 // ─── GET /api/album ──────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const album = await fetchAlbumFromDB(session.user.id);
-  return NextResponse.json({ album });
+  const { searchParams } = new URL(req.url);
+  const requestedAlbumId = searchParams.get("albumId");
+
+  const userId = session.user.id;
+  let albums = await fetchUserAlbumsSummaries(userId);
+  let album = await fetchAlbumFromDB(userId, requestedAlbumId);
+
+  // If user has no albums at all, create a first default album
+  if (!album && albums.length === 0) {
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      const newAlbumRes = await client.query<{ id: string }>(
+        `INSERT INTO albums (user_id, title, is_public, is_default, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         RETURNING id`,
+        [userId, "Mi Álbum", true, true]
+      );
+      const newAlbumId = newAlbumRes.rows[0].id;
+      const initialPage = createEmptyPage(0);
+
+      const pageRes = await client.query<{ id: string }>(
+        `INSERT INTO album_pages (album_id, page_id, title, position) VALUES ($1, $2, $3, $4) RETURNING id`,
+        [newAlbumId, initialPage.pageId, initialPage.title, 0]
+      );
+      const pageDbId = pageRes.rows[0].id;
+
+      const values: unknown[] = [];
+      const placeholders = initialPage.slots.map((slot, si) => {
+        const base = si * 8;
+        values.push(pageDbId, slot.slotId, si, slot.state, null, null, null, null);
+        return `($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6},$${base + 7},$${base + 8})`;
+      });
+
+      await client.query(
+        `INSERT INTO album_slots (page_db_id, slot_id, position, state, card_id, card_data, language, wishlist_urls)
+         VALUES ${placeholders.join(",")}`,
+        values
+      );
+
+      await client.query("COMMIT");
+
+      album = {
+        id: newAlbumId,
+        title: "Mi Álbum",
+        pages: [initialPage],
+        isPublic: true,
+        isDefault: true,
+      };
+      albums = [
+        {
+          id: newAlbumId,
+          title: "Mi Álbum",
+          isPublic: true,
+          isDefault: true,
+          ownedCount: 0,
+          wishlistCount: 0,
+          totalSlots: SLOTS_PER_PAGE,
+        },
+      ];
+    } catch (e) {
+      await client.query("ROLLBACK");
+      console.error("Error creating initial album:", e);
+    } finally {
+      client.release();
+    }
+  }
+
+  return NextResponse.json({ album, albums });
 }
 
-// ─── POST /api/album  (full save / upsert) ───────────────────────────────────
+// ─── POST /api/album  (save/update full album structure) ─────────────────────
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -78,17 +294,50 @@ export async function POST(req: NextRequest) {
   try {
     await client.query("BEGIN");
 
-    // Upsert album row
-    const albumRes = await client.query<{ id: string }>(
-      `INSERT INTO albums (user_id, is_public, updated_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (user_id) DO UPDATE SET is_public = EXCLUDED.is_public, updated_at = NOW()
-       RETURNING id`,
-      [userId, album.isPublic ?? true]
-    );
-    const albumDbId = albumRes.rows[0].id;
+    let albumDbId: string | null = null;
 
-    // Delete all existing pages (cascade deletes slots)
+    if (isValidUUID(album.id)) {
+      const existing = await client.query<{ id: string }>(
+        `SELECT id FROM albums WHERE id = $1 AND user_id = $2`,
+        [album.id, userId]
+      );
+      if (existing.rows.length > 0) {
+        albumDbId = existing.rows[0].id;
+        await client.query(
+          `UPDATE albums 
+           SET title = $1, description = $2, is_public = $3, cover_url = $4, updated_at = NOW() 
+           WHERE id = $5 AND user_id = $6`,
+          [
+            album.title || "Mi Álbum",
+            album.description ?? "",
+            album.isPublic ?? true,
+            album.coverUrl ?? null,
+            albumDbId,
+            userId,
+          ]
+        );
+      }
+    }
+
+    if (!albumDbId) {
+      // Create new album record
+      const albumRes = await client.query<{ id: string }>(
+        `INSERT INTO albums (user_id, title, description, cover_url, is_public, is_default, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         RETURNING id`,
+        [
+          userId,
+          album.title || "Mi Álbum",
+          album.description ?? "",
+          album.coverUrl ?? null,
+          album.isPublic ?? true,
+          album.isDefault ?? false,
+        ]
+      );
+      albumDbId = albumRes.rows[0].id;
+    }
+
+    // Delete existing pages (cascade deletes slots)
     await client.query(`DELETE FROM album_pages WHERE album_id = $1`, [albumDbId]);
 
     // Insert pages and slots
@@ -127,7 +376,7 @@ export async function POST(req: NextRequest) {
     }
 
     await client.query("COMMIT");
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, albumId: albumDbId });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("POST /api/album error:", err);
@@ -137,19 +386,139 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ─── PATCH /api/album  (toggle visibility) ───────────────────────────────────
+// ─── PATCH /api/album  (update metadata) ────────────────────────────────────
 export async function PATCH(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { isPublic }: { isPublic: boolean } = await req.json();
+  const {
+    albumId,
+    title,
+    description,
+    isPublic,
+    isDefault,
+    coverUrl,
+  }: {
+    albumId?: string;
+    title?: string;
+    description?: string;
+    isPublic?: boolean;
+    isDefault?: boolean;
+    coverUrl?: string;
+  } = await req.json();
 
-  await db.query(
-    `UPDATE albums SET is_public = $1, updated_at = NOW() WHERE user_id = $2`,
-    [isPublic, session.user.id]
+  const userId = session.user.id;
+
+  if (!albumId || !isValidUUID(albumId)) {
+    return NextResponse.json({ error: "Valid albumId is required" }, { status: 400 });
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    if (isDefault) {
+      // Clear default on all other albums
+      await client.query(`UPDATE albums SET is_default = FALSE WHERE user_id = $1`, [
+        userId,
+      ]);
+    }
+
+    const updates: string[] = ["updated_at = NOW()"];
+    const values: unknown[] = [albumId, userId];
+    let index = 3;
+
+    if (title !== undefined) {
+      updates.push(`title = $${index++}`);
+      values.push(title);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${index++}`);
+      values.push(description);
+    }
+    if (isPublic !== undefined) {
+      updates.push(`is_public = $${index++}`);
+      values.push(isPublic);
+    }
+    if (isDefault !== undefined) {
+      updates.push(`is_default = $${index++}`);
+      values.push(isDefault);
+    }
+    if (coverUrl !== undefined) {
+      updates.push(`cover_url = $${index++}`);
+      values.push(coverUrl);
+    }
+
+    await client.query(
+      `UPDATE albums SET ${updates.join(", ")} WHERE id = $1 AND user_id = $2`,
+      values
+    );
+
+    await client.query("COMMIT");
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("PATCH /api/album error:", e);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } finally {
+    client.release();
+  }
+}
+
+// ─── DELETE /api/album ──────────────────────────────────────────────────────
+export async function DELETE(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  let albumId = searchParams.get("albumId");
+
+  if (!albumId) {
+    try {
+      const body = await req.json();
+      albumId = body.albumId;
+    } catch {
+      // body parse error or empty
+    }
+  }
+
+  if (!albumId || !isValidUUID(albumId)) {
+    return NextResponse.json({ error: "Valid albumId is required" }, { status: 400 });
+  }
+
+  const userId = session.user.id;
+
+  // Count user's albums: user cannot delete their last remaining album
+  const countRes = await db.query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM albums WHERE user_id = $1`,
+    [userId]
   );
+  if (parseInt(countRes.rows[0]?.count || "0", 10) <= 1) {
+    return NextResponse.json(
+      { error: "No puedes eliminar tu único álbum." },
+      { status: 400 }
+    );
+  }
 
-  return NextResponse.json({ success: true });
+  // Delete the album
+  await db.query(`DELETE FROM albums WHERE id = $1 AND user_id = $2`, [
+    albumId,
+    userId,
+  ]);
+
+  // If deleted album was default, set another album as default
+  const remaining = await fetchUserAlbumsSummaries(userId);
+  if (remaining.length > 0 && !remaining.some((a) => a.isDefault)) {
+    await db.query(
+      `UPDATE albums SET is_default = TRUE WHERE id = $1 AND user_id = $2`,
+      [remaining[0].id, userId]
+    );
+    remaining[0].isDefault = true;
+  }
+
+  return NextResponse.json({ success: true, albums: remaining });
 }

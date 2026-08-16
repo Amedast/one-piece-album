@@ -71,8 +71,27 @@ export interface AlbumPage {
   slots: AlbumSlot[]; // 12 slots: 4 columns × 3 rows
 }
 
+export interface AlbumSummary {
+  id: string;
+  title: string;
+  description?: string;
+  isPublic: boolean;
+  isDefault?: boolean;
+  coverUrl?: string;
+  ownedCount?: number;
+  wishlistCount?: number;
+  totalSlots?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Album {
   id: string;
+  title: string;
+  description?: string;
   pages: AlbumPage[];
   isPublic?: boolean;
+  isDefault?: boolean;
+  coverUrl?: string;
 }
+

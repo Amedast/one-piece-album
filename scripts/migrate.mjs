@@ -83,12 +83,17 @@ const migrations = [
     name: "albums",
     sql: `
       CREATE TABLE IF NOT EXISTS "albums" (
-        "id"         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-        "user_id"    TEXT        NOT NULL UNIQUE REFERENCES "user"("id") ON DELETE CASCADE,
-        "is_public"  BOOLEAN     NOT NULL DEFAULT TRUE,
-        "created_at" TIMESTAMP   NOT NULL DEFAULT NOW(),
-        "updated_at" TIMESTAMP   NOT NULL DEFAULT NOW()
+        "id"          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id"     TEXT        NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+        "title"       TEXT        NOT NULL DEFAULT 'Mi Álbum',
+        "description" TEXT        DEFAULT '',
+        "cover_url"   TEXT,
+        "is_public"   BOOLEAN     NOT NULL DEFAULT TRUE,
+        "is_default"  BOOLEAN     NOT NULL DEFAULT FALSE,
+        "created_at"  TIMESTAMP   NOT NULL DEFAULT NOW(),
+        "updated_at"  TIMESTAMP   NOT NULL DEFAULT NOW()
       );
+      CREATE INDEX IF NOT EXISTS idx_albums_user_id ON "albums"("user_id");
     `,
   },
   {

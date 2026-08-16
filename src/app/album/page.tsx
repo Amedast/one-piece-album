@@ -9,6 +9,8 @@ import AlbumSearchModal from "@/components/AlbumSearchModal";
 import WishlistUrlsModal from "@/components/album/WishlistUrlsModal";
 import CustomCardModal from "@/components/album/CustomCardModal";
 import PageManagerModal from "@/components/album/PageManagerModal";
+import CreateAlbumModal from "@/components/album/CreateAlbumModal";
+import AlbumSettingsModal from "@/components/album/AlbumSettingsModal";
 import CardDetailsModal from "@/components/CardDetailsModal";
 import type {
   AlbumSlot,
@@ -61,6 +63,11 @@ export default function AlbumPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // When active album changes, reset page index
+  useEffect(() => {
+    setCurrentPageIndex(0);
+  }, [album?.id]);
+
   // Drag state
   const [dragSource, setDragSource] = useState<{
     pageId: string;
@@ -76,6 +83,8 @@ export default function AlbumPage() {
   const [wishlistCtx, setWishlistCtx] = useState<WishlistContext | null>(null);
   const [isCustomCardOpen, setIsCustomCardOpen] = useState(false);
   const [isPageManagerOpen, setIsPageManagerOpen] = useState(false);
+  const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
+  const [isAlbumSettingsOpen, setIsAlbumSettingsOpen] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   useEffect(() => {
@@ -117,7 +126,7 @@ export default function AlbumPage() {
     } else {
       const spreadIndex = index + 1;
       setCurrentPageIndex(
-        spreadIndex % 2 === 0 ? spreadIndex : spreadIndex - 1,
+        spreadIndex % 2 === 0 ? spreadIndex : spreadIndex - 1
       );
     }
   };
@@ -141,7 +150,7 @@ export default function AlbumPage() {
         dragSource.pageId,
         dragSource.slotId,
         dragTarget.pageId,
-        dragTarget.slotId,
+        dragTarget.slotId
       );
     }
     setDragSource(null);
@@ -156,14 +165,14 @@ export default function AlbumPage() {
   const handleOpenSearch = (
     pageId: string,
     slotId: string,
-    replaceState?: "OWNED" | "WISHLIST",
+    replaceState?: "OWNED" | "WISHLIST"
   ) => {
     setSearchCtx({ pageId, slotId, replaceState });
   };
   const handleCardSelect = (
     card: Card,
     state: SlotState,
-    language?: "JP" | "EN",
+    language?: "JP" | "EN"
   ) => {
     if (searchCtx) {
       updateSlot(searchCtx.pageId, searchCtx.slotId, card, state, language);
@@ -202,11 +211,13 @@ export default function AlbumPage() {
           onToggleReorganize={() => setIsReorganizeMode((m) => !m)}
           onOpenCustomCard={() => setIsCustomCardOpen(true)}
           onOpenPageManager={() => setIsPageManagerOpen(true)}
+          onOpenCreateAlbum={() => setIsCreateAlbumOpen(true)}
+          onOpenAlbumSettings={() => setIsAlbumSettingsOpen(true)}
         />
 
         <div className="relative">
           {/* Outer binder frame */}
-          <div className="relative bg-[#0D1018] rounded-[2.5rem] border border-white/6 shadow-2xl overflow-hidden">
+          <div className="relative bg-[#0D1018] rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/6 shadow-2xl overflow-hidden">
             {/* The spread pages - with swipe support */}
             <motion.div
               drag={!isReorganizeMode && isTouchDevice ? "x" : false}
@@ -234,9 +245,25 @@ export default function AlbumPage() {
                     dragTarget={dragTarget}
                     onOpenSearch={handleOpenSearch}
                     onClearSlot={clearSlot}
-                    onOpenWishlistUrls={(pageId, slot) => setWishlistCtx({ pageId, slot })}
-                    onOpenCardDetails={(card, pageId, slotId, currentState, currentLanguage, wishlistUrls) =>
-                      setDetailCtx({ card, pageId, slotId, currentState, currentLanguage, wishlistUrls })
+                    onOpenWishlistUrls={(pageId, slot) =>
+                      setWishlistCtx({ pageId, slot })
+                    }
+                    onOpenCardDetails={(
+                      card,
+                      pageId,
+                      slotId,
+                      currentState,
+                      currentLanguage,
+                      wishlistUrls
+                    ) =>
+                      setDetailCtx({
+                        card,
+                        pageId,
+                        slotId,
+                        currentState,
+                        currentLanguage,
+                        wishlistUrls,
+                      })
                     }
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
@@ -260,15 +287,33 @@ export default function AlbumPage() {
               {rightPage ? (
                 <AlbumPagePanel
                   page={rightPage}
-                  pageNumber={isSinglePageView ? currentPageIndex : currentPageIndex + 1}
+                  pageNumber={
+                    isSinglePageView ? currentPageIndex : currentPageIndex + 1
+                  }
                   isReorganizeMode={isReorganizeMode}
                   dragSource={dragSource}
                   dragTarget={dragTarget}
                   onOpenSearch={handleOpenSearch}
                   onClearSlot={clearSlot}
-                  onOpenWishlistUrls={(pageId, slot) => setWishlistCtx({ pageId, slot })}
-                  onOpenCardDetails={(card, pageId, slotId, currentState, currentLanguage, wishlistUrls) =>
-                    setDetailCtx({ card, pageId, slotId, currentState, currentLanguage, wishlistUrls })
+                  onOpenWishlistUrls={(pageId, slot) =>
+                    setWishlistCtx({ pageId, slot })
+                  }
+                  onOpenCardDetails={(
+                    card,
+                    pageId,
+                    slotId,
+                    currentState,
+                    currentLanguage,
+                    wishlistUrls
+                  ) =>
+                    setDetailCtx({
+                      card,
+                      pageId,
+                      slotId,
+                      currentState,
+                      currentLanguage,
+                      wishlistUrls,
+                    })
                   }
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
@@ -313,6 +358,16 @@ export default function AlbumPage() {
         onNavigateToPage={handleNavigateToPage}
       />
 
+      <CreateAlbumModal
+        isOpen={isCreateAlbumOpen}
+        onClose={() => setIsCreateAlbumOpen(false)}
+      />
+
+      <AlbumSettingsModal
+        isOpen={isAlbumSettingsOpen}
+        onClose={() => setIsAlbumSettingsOpen(false)}
+      />
+
       {detailCtx && (
         <CardDetailsModal
           card={detailCtx.card}
@@ -342,7 +397,6 @@ function CoverPlaceholder() {
     <div className="flex-1 bg-leather min-h-[640px] lg:min-h-[700px] flex items-center justify-center" />
   );
 }
-
 
 function EmptyPagePlaceholder({ onAddPage }: { onAddPage: () => void }) {
   return (

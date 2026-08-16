@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, WishlistUrl } from "@/types";
+import { Card, WishlistUrl, Album } from "@/types";
 import { getCardImageUrl } from "@/lib/image-utils";
 import {
   X,
@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronLeft,
   Grid,
+  Star,
 } from "lucide-react";
 import { useAlbum } from "@/context/AlbumContext";
 import { twMerge } from "tailwind-merge";
@@ -48,7 +49,15 @@ export default function CardDetailsModal({
   wishlistUrls = [],
   onOpenWishlistUrls,
 }: CardDetailsModalProps) {
-  const { album, updateSlot, addPage, clearSlot } = useAlbum();
+  const {
+    album,
+    albums,
+    switchAlbum,
+    updateSlot,
+    addPage,
+    clearSlot,
+    saveAlbumToServer,
+  } = useAlbum();
 
   // When opened from a slot, we can toggle its state
   const isSlotContext = !!(slotPageId && slotId && currentSlotState);
@@ -127,8 +136,9 @@ export default function CardDetailsModal({
       .map((s) => ({ ...s, pageTitle: p.title })),
   );
   const isAlreadyInAlbum = existingSlots.length > 0;
+  const [showAlbumSelect, setShowAlbumSelect] = useState(false);
 
-  const handleAddToAlbum = () => {
+  const handleAddToAlbum = async () => {
     let targetPageId = "";
     let targetSlotId = "";
 
@@ -146,10 +156,35 @@ export default function CardDetailsModal({
 
     updateSlot(targetPageId, targetSlotId, card, addState, addLanguage);
     setAddSuccess(true);
+
+    const updatedAlbum: Album = {
+      ...album,
+      pages: album.pages.map((p) => {
+        if (p.pageId !== targetPageId) return p;
+        return {
+          ...p,
+          slots: p.slots.map((s) => {
+            if (s.slotId !== targetSlotId) return s;
+            return {
+              ...s,
+              cardId: card.id,
+              cardData: card,
+              state: addState,
+              language: addLanguage,
+            };
+          }),
+        };
+      }),
+    };
+
+    try {
+      await saveAlbumToServer(updatedAlbum);
+    } catch (err) {
+      console.error("Auto-save card error:", err);
+    }
+
     setTimeout(() => {
       setAddSuccess(false);
-      // Reset placement to FIRST_AVAILABLE if it was just placed in concrete slot?
-      // No need, user might close the modal. If they add multiple, let them choose.
     }, 2000);
   };
 
@@ -282,6 +317,10 @@ export default function CardDetailsModal({
                               placementType === "CONCRETE" &&
                               concretePos?.slotId === slot.slotId;
                             const isEmpty = slot.state === "EMPTY";
+                            const slotImg =
+                              slot.cardData?.imageData ||
+                              getCardImageUrl(slot.cardData?.url);
+
                             return (
                               <button
                                 key={slot.slotId}
@@ -297,34 +336,39 @@ export default function CardDetailsModal({
                                   setViewMiniAlbum(false);
                                 }}
                                 className={twMerge(
-                                  "aspect-[63/88] rounded flex items-center justify-center border transition-all relative group overflow-hidden",
+                                  "aspect-[63/88] rounded-lg flex items-center justify-center border transition-all relative group overflow-hidden",
                                   isEmpty
-                                    ? "cursor-pointer border-white/20 bg-white/5 hover:border-gold hover:bg-white/10"
-                                    : "cursor-not-allowed border-white/5 bg-zinc-900/50",
+                                    ? "cursor-pointer border-white/15 bg-white/5 hover:border-gold hover:bg-gold/10"
+                                    : "cursor-not-allowed border-white/10 bg-leather-light",
                                   isSelected &&
-                                    "border-gold bg-gold/10 ring-2 ring-gold/20 !opacity-100", // Override opacity if selected (though shouldn't be full page normally)
+                                    "border-gold bg-gold/15 ring-2 ring-gold/30 !opacity-100",
                                 )}
                               >
                                 {isSelected ? (
                                   <CheckCircle2
-                                    size={16}
-                                    className="text-gold"
+                                    size={18}
+                                    className="text-gold z-10"
                                   />
                                 ) : isEmpty ? (
-                                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[8px] font-black uppercase text-gold/70 transition-opacity">
-                                    <Plus size={10} />
+                                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[9px] font-black uppercase text-gold transition-opacity">
+                                    <Plus size={12} />
                                   </div>
                                 ) : (
-                                  <div
-                                    className="absolute inset-0 bg-cover bg-center opacity-30 grayscale"
-                                    style={{
-                                      backgroundImage: slot.cardData?.imageData
-                                        ? `url(${slot.cardData.imageData})`
-                                        : slot.cardData?.url
-                                          ? `url(${slot.cardData.url})`
-                                          : "none",
-                                    }}
-                                  ></div>
+                                  <div className="relative w-full h-full">
+                                    {slotImg ? (
+                                      <div
+                                        className="absolute inset-0 bg-cover bg-center rounded"
+                                        style={{
+                                          backgroundImage: `url(${slotImg})`,
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center p-1 text-center text-[8px] text-zinc-400 font-bold">
+                                        {slot.cardData?.name || "Ocupado"}
+                                      </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-black/20" />
+                                  </div>
                                 )}
                               </button>
                             );
@@ -533,9 +577,83 @@ export default function CardDetailsModal({
                 ) : !readOnly ? (
                   /* ---- DATABASE CONTEXT: add to album ---- */
                   <div className="mt-auto pt-6 border-t border-white/6 space-y-4">
-                    <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
-                      Añadir al Álbum
-                    </h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.3em]">
+                        Añadir al Álbum
+                      </h3>
+                      {albums.length > 1 && (
+                        <span className="text-[10px] font-bold text-gold font-cinzel truncate max-w-36">
+                          {album.title}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Custom Album picker if multiple albums */}
+                    {albums.length > 1 && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowAlbumSelect(!showAlbumSelect)}
+                          className="cursor-pointer w-full flex items-center justify-between px-4 py-3 bg-leather-light border border-white/10 hover:border-white/20 rounded-xl text-sm text-zinc-300 transition-all font-crimson"
+                        >
+                          <span className="truncate pr-2 font-crimson">
+                            {album.title || "Mi Álbum"} ({album.pages.reduce((acc, p) => acc + p.slots.filter(s => s.state === "OWNED").length, 0)} cartas)
+                          </span>
+                          <ChevronDown
+                            size={16}
+                            className={twMerge(
+                              "text-zinc-500 transition-transform shrink-0",
+                              showAlbumSelect && "rotate-180",
+                            )}
+                          />
+                        </button>
+
+                        <AnimatePresence>
+                          {showAlbumSelect && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 6 }}
+                              className="absolute top-full left-0 right-0 mt-2 bg-leather border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50"
+                            >
+                              {albums.map((a, index) => {
+                                const isCurrent = a.id === album.id;
+                                return (
+                                  <button
+                                    key={a.id}
+                                    type="button"
+                                    onClick={() => {
+                                      switchAlbum(a.id);
+                                      setShowAlbumSelect(false);
+                                    }}
+                                    className={`cursor-pointer w-full px-4 py-3.5 text-left text-sm transition-colors font-crimson flex justify-between items-center hover:bg-white/5 ${
+                                      index > 0 ? "border-t border-white/5" : ""
+                                    } ${
+                                      isCurrent
+                                        ? "text-gold font-bold"
+                                        : "text-zinc-300 hover:text-white"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 truncate min-w-0 pr-2">
+                                      <span className="truncate">{a.title}</span>
+                                      {a.isDefault && (
+                                        <Star
+                                          size={12}
+                                          className="text-gold fill-gold shrink-0"
+                                        />
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-zinc-500 shrink-0">
+                                      {a.ownedCount ?? 0} cartas
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
 
                     {/* State selector */}
                     <div className="flex gap-2">
@@ -627,13 +745,13 @@ export default function CardDetailsModal({
                       </AnimatePresence>
                     </div>
 
-                    {/* Add button */}
+                    {/* Add button with explicit cursor-pointer */}
                     <motion.button
                       onClick={handleAddToAlbum}
                       disabled={getPagesWithSpace().length === 0}
                       whileTap={{ scale: 0.97 }}
                       className={twMerge(
-                        "w-full py-3.5 rounded-xl font-black uppercase text-sm tracking-wider transition-all duration-200 flex items-center justify-center gap-2",
+                        "cursor-pointer w-full py-3.5 rounded-xl font-black uppercase text-sm tracking-wider transition-all duration-200 flex items-center justify-center gap-2",
                         addSuccess
                           ? "bg-emerald-500 text-white"
                           : "bg-gold text-obsidian hover:bg-gold-bright disabled:opacity-40 disabled:cursor-not-allowed",
