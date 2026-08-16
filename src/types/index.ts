@@ -99,3 +99,41 @@ export interface Album {
   coverUrl?: string;
 }
 
+export type WallFrameStyle =
+  | 'obsidian'
+  | 'dark-wood'
+  | 'gold-leaf'
+  | 'clean-acrylic'
+  | 'silver-metal';
+
+export interface WallSlot {
+  slotId: string;
+  position: number;
+  cardId?: number | string;
+  cardData?: Card;
+}
+
+export interface WallPoster {
+  id: string;
+  title: string;
+  columns: number; // 2 to 6
+  rows: number;    // 2 to 6
+  frameStyle: WallFrameStyle;
+  slots: WallSlot[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WallPosterSummary {
+  id: string;
+  title: string;
+  columns: number;
+  rows: number;
+  frameStyle: WallFrameStyle;
+  totalSlots: number;
+  filledCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+

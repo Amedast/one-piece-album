@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, BookOpen, Users, LogOut, LogIn, User } from "lucide-react";
+import { Compass, BookOpen, Users, Frame, LogOut, LogIn, User } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { useAlbum } from "@/context/AlbumContext";
 import { useSession, signOut } from "@/lib/auth-client";
@@ -61,6 +61,12 @@ export default function Navbar() {
               active={pathname === "/collection"}
               icon={<BookOpen size={15} />}
               label="Mi Colección"
+            />
+            <NavLink
+              href="/wallmaker"
+              active={pathname === "/wallmaker"}
+              icon={<Frame size={15} />}
+              label="Wallmaker"
             />
             <NavLink
               href="/albums"
