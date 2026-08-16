@@ -213,7 +213,7 @@ export default function Home() {
         />
 
         {/* Card Grid */}
-        <div className="relative min-h-125">
+        <div className="relative min-h-125 mt-6 md:mt-2">
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-5 md:gap-6">
               {[...Array(32)].map((_, i) => (
