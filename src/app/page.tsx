@@ -126,16 +126,17 @@ export default function Home() {
     }
   }, [inView, hasMore, isLoading, isFetchingMore, loadCards]);
 
-
   // Load filters from sessionStorage on mount
   useEffect(() => {
     const cached = sessionStorage.getItem(FILTERS_STORAGE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (parsed.searchQuery !== undefined) setSearchQuery(parsed.searchQuery);
+        if (parsed.searchQuery !== undefined)
+          setSearchQuery(parsed.searchQuery);
         if (parsed.selectedTypes) setSelectedTypes(parsed.selectedTypes);
-        if (parsed.selectedRarities) setSelectedRarities(parsed.selectedRarities);
+        if (parsed.selectedRarities)
+          setSelectedRarities(parsed.selectedRarities);
         if (parsed.selectedColors) setSelectedColors(parsed.selectedColors);
         if (parsed.selectedSets) setSelectedSets(parsed.selectedSets);
         if (parsed.showAltArtsOnly !== undefined)
@@ -185,30 +186,31 @@ export default function Home() {
     <main className="min-h-screen pt-20 pb-20">
       <div className="max-w-[1600px] mx-auto px-5 md:px-10">
         {/* Header */}
-        <div className="pt-10 pb-12">
-          <h1 className="font-cinzel text-6xl md:text-8xl font-black text-white leading-none mb-4 text-center">
-            Ohara <span className="text-shimmer">Database</span>
+        <div className="pt-10 pb-10">
+          <h1 className="font-cinzel text-5xl md:text-6xl lg:text-[3.75rem] font-black text-white leading-none mb-3">
+            Ohara <span className="text-gold">Database</span>
           </h1>
+          <p className="text-zinc-500 font-crimson text-base leading-relaxed">
+            Busca y filtra todas las cartas de One Piece TCG.
+          </p>
         </div>
 
-        {/* Sticky filters */}
-        <div className="sticky top-16 z-40 py-4 bg-obsidian/90 backdrop-blur-xl border-b border-white/5 -mx-5 md:-mx-10 px-5 md:px-10 mb-10">
-          <FilterSystem
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            selectedTypes={selectedTypes}
-            setSelectedTypes={setSelectedTypes}
-            selectedRarities={selectedRarities}
-            setSelectedRarities={setSelectedRarities}
-            selectedColors={selectedColors}
-            setSelectedColors={setSelectedColors}
-            selectedSets={selectedSets}
-            setSelectedSets={setSelectedSets}
-            showAltArtsOnly={showAltArtsOnly}
-            setShowAltArtsOnly={setShowAltArtsOnly}
-            onReset={resetFilters}
-          />
-        </div>
+        {/* Filters */}
+        <FilterSystem
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedTypes={selectedTypes}
+          setSelectedTypes={setSelectedTypes}
+          selectedRarities={selectedRarities}
+          setSelectedRarities={setSelectedRarities}
+          selectedColors={selectedColors}
+          setSelectedColors={setSelectedColors}
+          selectedSets={selectedSets}
+          setSelectedSets={setSelectedSets}
+          showAltArtsOnly={showAltArtsOnly}
+          setShowAltArtsOnly={setShowAltArtsOnly}
+          onReset={resetFilters}
+        />
 
         {/* Card Grid */}
         <div className="relative min-h-125">
@@ -250,13 +252,21 @@ export default function Home() {
               </div>
             </>
           ) : (
-            <div className="text-center py-28 border-2 border-dashed border-white/6 rounded-3xl">
-              <p className="font-cinzel text-zinc-600 font-bold uppercase tracking-widest text-sm mb-3">
-                No se encontraron cartas
-              </p>
+            <div className="flex flex-col items-center justify-center py-28 border border-dashed border-white/8 rounded-2xl gap-5">
+              <div className="w-12 h-12 rounded-xl bg-leather-light border border-white/8 flex items-center justify-center">
+                <Compass size={20} className="text-zinc-600" />
+              </div>
+              <div className="text-center">
+                <p className="font-cinzel text-zinc-600 font-bold text-sm mb-1">
+                  Sin resultados
+                </p>
+                <p className="text-zinc-700 font-crimson text-sm">
+                  Ninguna carta coincide con los filtros actuales.
+                </p>
+              </div>
               <button
                 onClick={resetFilters}
-                className="cursor-pointer text-xs text-zinc-500 hover:text-gold transition-colors font-bold underline underline-offset-4"
+                className="cursor-pointer text-xs text-zinc-500 hover:text-gold transition-colors duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] font-semibold underline underline-offset-4"
               >
                 Limpiar filtros
               </button>

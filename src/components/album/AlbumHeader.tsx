@@ -112,7 +112,7 @@ export default function AlbumHeader({
             disabled={isSaving}
             whileTap={{ scale: 0.95 }}
             className={twMerge(
-              "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 shadow-[0_0_15px_rgba(59,130,246,0.3)] cursor-pointer",
+              "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 cursor-pointer",
               isSaving
                 ? "bg-blue-500/10 border-blue-500/20 text-blue-300 opacity-70"
                 : "bg-blue-500/20 text-blue-400 border-blue-500/50 hover:bg-blue-500/30",
@@ -121,10 +121,10 @@ export default function AlbumHeader({
             {isSaving ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
-              <Save size={16} className="animate-pulse" />
+              <Save size={16} />
             )}
-            <span className="text-xs uppercase tracking-wider font-black">
-              {isSaving ? "Guardando..." : "Guardar Cambios"}
+            <span className="text-xs font-bold">
+              {isSaving ? "Guardando..." : "Guardar cambios"}
             </span>
           </motion.button>
 
@@ -144,7 +144,7 @@ export default function AlbumHeader({
             ) : (
               <GripVertical size={16} />
             )}
-            <span className="text-xs uppercase tracking-wider font-black">
+            <span className="text-xs font-medium">
               {isReorganizeMode ? "Listo" : "Reorganizar"}
             </span>
           </motion.button>
@@ -157,7 +157,7 @@ export default function AlbumHeader({
             title="Añadir página"
           >
             <Plus size={16} />
-            <span className="text-xs uppercase tracking-wider font-black hidden sm:inline">
+            <span className="text-xs font-medium hidden sm:inline">
               Página
             </span>
           </motion.button>
@@ -170,7 +170,7 @@ export default function AlbumHeader({
             title="Crear carta personalizada"
           >
             <Wand2 size={16} />
-            <span className="text-xs uppercase tracking-wider font-black hidden sm:inline">
+            <span className="text-xs font-medium hidden sm:inline">
               Custom
             </span>
           </motion.button>
@@ -188,7 +188,7 @@ export default function AlbumHeader({
             title={isPublic ? "Tu álbum es público" : "Tu álbum es privado"}
           >
             {isPublic ? <Globe size={16} /> : <Lock size={16} />}
-            <span className="text-xs uppercase tracking-wider font-black hidden sm:inline">
+            <span className="text-xs font-medium hidden sm:inline">
               {isPublic ? "Público" : "Privado"}
             </span>
           </motion.button>
@@ -223,7 +223,7 @@ export default function AlbumHeader({
             size={18}
             className="group-hover:-translate-x-0.5 transition-transform"
           />
-          <span className="text-xs font-black uppercase tracking-wider hidden sm:inline">
+          <span className="text-xs font-medium hidden sm:inline">
             Anterior
           </span>
         </button>
@@ -255,7 +255,7 @@ export default function AlbumHeader({
           disabled={currentPageIndex + 2 >= totalSpreads}
           className="cursor-pointer flex items-center gap-2 px-5 py-2.5 bg-leather-light border border-white/10 rounded-xl text-zinc-400 hover:text-white hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-all group"
         >
-          <span className="text-xs font-black uppercase tracking-wider hidden sm:inline">
+          <span className="text-xs font-medium hidden sm:inline">
             Siguiente
           </span>
           <ChevronRight

@@ -38,17 +38,17 @@ export default function CollectorsPage() {
     <main className="min-h-screen pt-20 pb-20">
       <div className="max-w-300 mx-auto px-5 md:px-10">
         {/* Header */}
-        <div className="pt-10 pb-12 text-center">
-          <h1 className="font-cinzel text-5xl md:text-7xl font-black text-white leading-none mb-4">
-            <span className="text-shimmer">Nakama</span> Collectors
+        <div className="pt-10 pb-12">
+          <h1 className="font-cinzel text-5xl md:text-6xl lg:text-[3.75rem] font-black text-white leading-none mb-3">
+            Nakama <span className="text-gold">Collectors</span>
           </h1>
-          <p className="text-zinc-500 font-crimson text-lg max-w-lg mx-auto">
-            Explora las colecciones de otros nakamas del mundo de One Piece TCG
+          <p className="text-zinc-500 font-crimson text-base leading-relaxed">
+            Explora las colecciones de otros nakamas del mundo de One Piece TCG.
           </p>
         </div>
 
         {/* Search */}
-        <div className="relative mb-8 max-w-sm mx-auto">
+        <div className="relative mb-8 max-w-sm">
           <Search
             size={15}
             className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600"
